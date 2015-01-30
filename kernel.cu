@@ -5,6 +5,13 @@
 #include <iostream>
 #include <SDL2/SDL.h>
 
+#include "Pixel.hpp"
+
+#define WIDTH 800
+#define HEIGHT 600
+
+using namespace std;
+
 cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
 
 __global__ void addKernel(int *c, const int *a, const int *b)
@@ -15,79 +22,155 @@ __global__ void addKernel(int *c, const int *a, const int *b)
 
 
 
-int main(int argc, char* argv[])
+//int main(int argc, char* argv[])
+//{
+//	//const int arraySize = 5;
+//	//const int a[arraySize] = { 1, 2, 3, 4, 5 };
+//	//const int b[arraySize] = { 10, 20, 30, 40, 50 };
+//	//int c[arraySize] = { 0 };
+//
+//	//// Add vectors in parallel.
+//	//cudaError_t cudaStatus = addWithCuda(c, a, b, arraySize);
+//	//if (cudaStatus != cudaSuccess) {
+//	//	fprintf(stderr, "addWithCuda failed!");
+//	//	return 1;
+//	//}
+//
+//	//printf("{1,2,3,4,5} + {10,20,30,40,50} = {%d,%d,%d,%d,%d}\n",
+//	//	c[0], c[1], c[2], c[3], c[4]);
+//
+//	//// cudaDeviceReset must be called before exiting in order for profiling and
+//	//// tracing tools such as Nsight and Visual Profiler to show complete traces.
+//	//cudaStatus = cudaDeviceReset();
+//	//if (cudaStatus != cudaSuccess) {
+//	//	fprintf(stderr, "cudaDeviceReset failed!");
+//	//	return 1;
+//	//}
+//
+//	//============================================================ Partie DSL =========================================
+//	// Notre fenêtre
+//
+//	SDL_Window* fenetre(0);
+//	SDL_Event evenements;
+//	bool terminer(false);
+//
+//
+//	// Initialisation de la SDL
+//
+//	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+//	{
+//		std::cout << "Erreur lors de l'initialisation de la SDL : " << SDL_GetError() << std::endl;
+//		SDL_Quit();
+//
+//		return -1;
+//	}
+//
+//
+//	// Création de la fenêtre
+//
+//	cout << "Go Fenetre" << endl;
+//
+//	fenetre = SDL_CreateWindow("Test SDL 2.0", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN);
+//
+//	SDL_Surface* surface = SDL_GetWindowSurface(fenetre);
+//
+//	const SDL_PixelFormat* format = surface->format;
+//	
+//	Uint32 pixel = SDL_MapRGB(format, 100, 100, 100);
+//
+//	//Uint8 r, g, b, a;
+//
+//
+//	//SDL_LockSurface(surface); /*On bloque la surface*/
+//
+//
+
+
+Uint32 couleur(int r, int g, int b)
 {
-	const int arraySize = 5;
-	const int a[arraySize] = { 1, 2, 3, 4, 5 };
-	const int b[arraySize] = { 10, 20, 30, 40, 50 };
-	int c[arraySize] = { 0 };
+	return (((r << 8) + g) << 8) + b;
+}
 
-	// Add vectors in parallel.
-	cudaError_t cudaStatus = addWithCuda(c, a, b, arraySize);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "addWithCuda failed!");
-		return 1;
-	}
+void dessin(SDL_Renderer * ren, SDL_Texture * tex, Uint32 * pixels, float alpha)
+{
+	Uint32  *p;
+	Uint8 r, g, b;
+	int x, y;
+	float beta = 1 - alpha;
+	pixels = (Uint32*)malloc(WIDTH*HEIGHT*sizeof(Uint32));
+	if (!pixels) { fprintf(stderr, "Erreur allocation\n"); return; }
 
-	printf("{1,2,3,4,5} + {10,20,30,40,50} = {%d,%d,%d,%d,%d}\n",
-		c[0], c[1], c[2], c[3], c[4]);
+	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
-	// cudaDeviceReset must be called before exiting in order for profiling and
-	// tracing tools such as Nsight and Visual Profiler to show complete traces.
-	cudaStatus = cudaDeviceReset();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceReset failed!");
-		return 1;
-	}
-
-	//============================================================ Partie DSL =========================================
-	// Notre fenêtre
-
-	SDL_Window* fenetre(0);
-	SDL_Event evenements;
-	bool terminer(false);
-
-
-	// Initialisation de la SDL
-
-	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+	p = pixels;
+	for (y = 0; y<HEIGHT; y++)
 	{
-		std::cout << "Erreur lors de l'initialisation de la SDL : " << SDL_GetError() << std::endl;
-		SDL_Quit();
+		for (x = 0; x<WIDTH; x++)
+		{
+			r = 255 * y / HEIGHT;
+			g = 255 * x / WIDTH;
+			b = 255 * (x + y) / (WIDTH + HEIGHT);
 
+			*p = couleur(alpha*r + beta*g, alpha*g + beta*b, alpha*b + beta*r);
+			p++;
+		}
+	}
+	SDL_UpdateTexture(tex, NULL, pixels, WIDTH * sizeof(Uint32));
+	SDL_RenderCopy(ren, tex, NULL, NULL);
+	SDL_RenderPresent(ren);
+	SDL_DestroyTexture(tex);
+	free(pixels);
+}
+
+
+int main(int argc, char** argv)
+{
+	SDL_Window *win = 0;
+	SDL_Renderer *ren = 0;
+	Uint32 * pixels = 0;
+	SDL_Texture * tex = 0;
+	float alpha = 0.0;
+	float pas = 0.03;
+	int n;
+	/* Initialisation de la SDL. Si ça se passe mal, on quitte */
+	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
+	{
+		fprintf(stderr, "Erreur initialisation\n");
 		return -1;
 	}
+	/* Création de la fenêtre et du renderer */
+	SDL_CreateWindowAndRenderer(WIDTH, HEIGHT, 0, &win, &ren);
 
-
-	// Création de la fenêtre
-
-	fenetre = SDL_CreateWindow("Test SDL 2.0", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN);
-
-	if (fenetre == 0)
+	if (!win || !ren)
 	{
-		std::cout << "Erreur lors de la creation de la fenetre : " << SDL_GetError() << std::endl;
+		fprintf(stderr, "Erreur à la création des fenêtres\n");
 		SDL_Quit();
-
 		return -1;
 	}
+	/* Affichage du fond noir */
+	SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+	SDL_RenderClear(ren);
+	SDL_RenderPresent(ren);
 
+	pixels = (Uint32*)malloc(WIDTH*HEIGHT*sizeof(Uint32));
+	if (!pixels) { fprintf(stderr, "Erreur allocation\n"); return -1; }
 
-	// Boucle principale
+	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
-	while (!terminer)
-	{
-		SDL_WaitEvent(&evenements);
-
-		if (evenements.window.event == SDL_WINDOWEVENT_CLOSE)
-			terminer = true;
+	for (n = 0; n<1000L; n++) {
+		dessin(ren, tex, pixels, alpha);
+		alpha += pas;
+		if (alpha > 1.0) { alpha = 1.0; pas = -pas; }
+		if (alpha < 0.0) { alpha = 0.0; pas = -pas; }
 	}
 
+	SDL_Delay(1000);
 
-	// On quitte la SDL
-
-	SDL_DestroyWindow(fenetre);
+	SDL_DestroyRenderer(ren);
+	SDL_DestroyWindow(win);
 	SDL_Quit();
-
 	return 0;
 }
 
@@ -139,7 +222,7 @@ cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
 	}
 
 	// Launch a kernel on the GPU with one thread for each element.
-	addKernel<<<1, size>>>(dev_c, dev_a, dev_b);
+	addKernel<<< 1, size>>>(dev_c, dev_a, dev_b);
 
 	// Check for any errors launching the kernel
 	cudaStatus = cudaGetLastError();
