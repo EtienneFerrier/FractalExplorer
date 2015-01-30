@@ -26,12 +26,13 @@ public:
 	// Calcule la couleur d'un point de l'ensemble de Mandelbrot en fonction d'une méthode de coloration et d'un nombre d'itérations.
 	static Uint32 computeColor(float x, float y, int methode, int nbIterations)
 	{
+		int count;
+		Complexe z0(x, y);
+		Complexe z(x, y);
 		switch (methode)
 		{
 		case BIN_NB:
-			Complexe z0(x, y);
-			Complexe z(x, y);
-			int count = 0;
+			count = 0;
 			while (count < nbIterations && z.squaredNorm() < 4.)
 			{
 				z.mult(z);
