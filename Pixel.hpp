@@ -16,7 +16,7 @@ public:
 
 	Uint32 resultat : la fonction renvoie le pixel aux coordonnées (x,y) dans la surface
 	*/
-	Uint32 obtenirPixel(SDL_Surface *surface, int x, int y)
+	static Uint32 obtenirPixel(SDL_Surface *surface, int x, int y)
 	{
 		/*nbOctetsParPixel représente le nombre d'octets utilisés pour stocker un pixel.
 		En multipliant ce nombre d'octets par 8 (un octet = 8 bits), on obtient la profondeur de couleur
@@ -60,7 +60,7 @@ public:
 	int y : la coordonnée en y du pixel à modifier
 	Uint32 pixel : le pixel à insérer
 	*/
-	void definirPixel(SDL_Surface *surface, int x, int y, Uint32 pixel)
+	static void definirPixel(SDL_Surface *surface, int x, int y, Uint32 pixel)
 	{
 		/*nbOctetsParPixel représente le nombre d'octets utilisés pour stocker un pixel.
 		En multipliant ce nombre d'octets par 8 (un octet = 8 bits), on obtient la profondeur de couleur
