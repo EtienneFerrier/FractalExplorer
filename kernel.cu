@@ -6,6 +6,7 @@
 #include <SDL2/SDL.h>
 
 #include "Pixel.hpp"
+#include "Mandel.hpp"
 
 #define WIDTH 800
 #define HEIGHT 600
@@ -93,34 +94,21 @@ Uint32 couleur(int r, int g, int b)
 
 void dessin(SDL_Renderer * ren, SDL_Texture * tex, Uint32 * pixels, float alpha)
 {
-	Uint32  *p;
-	Uint8 r, g, b;
-	int x, y;
-	float beta = 1 - alpha;
-	pixels = (Uint32*)malloc(WIDTH*HEIGHT*sizeof(Uint32));
-	if (!pixels) { fprintf(stderr, "Erreur allocation\n"); return; }
+	//Uint32  *p;
+	//Uint8 r, g, b;
+	//int x, y;
+	//float beta = 1 - alpha;
+	//pixels = (Uint32*)malloc(WIDTH*HEIGHT*sizeof(Uint32));
+	//if (!pixels) { fprintf(stderr, "Erreur allocation\n"); return; }
 
 	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
 		SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
-	p = pixels;
-	for (y = 0; y<HEIGHT; y++)
-	{
-		for (x = 0; x<WIDTH; x++)
-		{
-			r = 255 * y / HEIGHT;
-			g = 255 * x / WIDTH;
-			b = 255 * (x + y) / (WIDTH + HEIGHT);
-
-			*p = couleur(alpha*r + beta*g, alpha*g + beta*b, alpha*b + beta*r);
-			p++;
-		}
-	}
 	SDL_UpdateTexture(tex, NULL, pixels, WIDTH * sizeof(Uint32));
 	SDL_RenderCopy(ren, tex, NULL, NULL);
 	SDL_RenderPresent(ren);
 	SDL_DestroyTexture(tex);
-	free(pixels);
+	//free(pixels);
 }
 
 
@@ -159,14 +147,18 @@ int main(int argc, char** argv)
 	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
 		SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
-	for (n = 0; n<1000L; n++) {
-		dessin(ren, tex, pixels, alpha);
-		alpha += pas;
-		if (alpha > 1.0) { alpha = 1.0; pas = -pas; }
-		if (alpha < 0.0) { alpha = 0.0; pas = -pas; }
-	}
+	Mandelbrot::computeMandel(pixels, WIDTH, HEIGHT);
 
-	SDL_Delay(1000);
+	dessin(ren, tex, pixels, alpha);
+
+	//for (n = 0; n<1000L; n++) {
+	//	dessin(ren, tex, pixels, alpha);
+	//	alpha += pas;
+	//	if (alpha > 1.0) { alpha = 1.0; pas = -pas; }
+	//	if (alpha < 0.0) { alpha = 0.0; pas = -pas; }
+	//}
+
+	SDL_Delay(10000);
 
 	SDL_DestroyRenderer(ren);
 	SDL_DestroyWindow(win);
