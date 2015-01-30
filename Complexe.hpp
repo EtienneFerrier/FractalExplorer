@@ -37,8 +37,9 @@ public:
 
 	void mult(Complexe c)
 	{
+		float tmpx = x;
 		x = x*c.x - y*c.y;
-		y = y*c.x + x*c.y;
+		y = y*c.x + tmpx*c.y;
 	}
 
 	float squaredNorm()

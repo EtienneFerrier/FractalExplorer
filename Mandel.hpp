@@ -12,6 +12,7 @@ Optimisation possible.
 
 
 #define BIN_NB 1
+#define CERCLE_NB 2
 
 class Mandelbrot {
 
@@ -27,16 +28,21 @@ public:
 	static Uint32 computeColor(float x, float y, int methode, int nbIterations)
 	{
 		int count;
-		Complexe z0(x, y);
-		Complexe z(x, y);
+		Complexe c(x, y);
+		Complexe z(0., 0.);
 		switch (methode)
 		{
+		case CERCLE_NB:
+			if (z.squaredNorm() > 2.)
+				return couleur(0, 0, 0);
+			else return couleur(255, 255, 255);
+			break;
 		case BIN_NB:
 			count = 0;
 			while (count < nbIterations && z.squaredNorm() < 4.)
 			{
 				z.mult(z);
-				z.add(z0);
+				z.add(c);
 				count++;
 			}
 			if (z.squaredNorm() < 4.)
@@ -56,7 +62,7 @@ public:
 		for (int i = 0; i < width; i++)
 			for (int j = 0; j < height; j++)
 			{
-			result[i*height + j] = computeColor(-2. + 4.*((float)i / width), -2. + 4.*((float)j / height), BIN_NB, 10);
+			result[j*width + i] = computeColor(-2. + 4.*((float)i / width), (-2. + 4.*((float)j / height))*height/((float)width), BIN_NB, 50);
 			}
 
 	}
