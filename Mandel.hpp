@@ -10,8 +10,9 @@ Optimisation possible.
 #include "Complexe.hpp"
 #include <iostream>
 
-
-#define BIN_NB 1
+// Fractale de mandelbrot en N&B
+#define MANDEL_NB 1
+// Affiche un cercle en N&B (pour faire des tests)
 #define CERCLE_NB 2
 
 class Mandelbrot {
@@ -37,7 +38,7 @@ public:
 				return couleur(0, 0, 0);
 			else return couleur(255, 255, 255);
 			break;
-		case BIN_NB:
+		case MANDEL_NB:
 			count = 0;
 			while (count < nbIterations && z.squaredNorm() < 4.)
 			{
@@ -51,6 +52,7 @@ public:
 			break;
 		default:
 			std::cout << "Pas de methode de coloration" << std::endl;
+			return couleur(255, 0, 0);
 			break;
 		}
 	}
@@ -63,7 +65,7 @@ public:
 			for (int j = 0; j < height; j++)
 			{
 				//result[j*width + i] = computeColor(-2. + 4.*((float)i / width), (-2. + 4.*((float)j / height))*height / ((float)width), BIN_NB, 50);
-				result[j*width + i] = computeColor(center.x + scale*(-0.5+(float)i / width), (center.y + scale*(-0.5+(float)j / height))*height / ((float)width), BIN_NB, 50);
+				result[j*width + i] = computeColor(center.x + scale*(-0.5+(float)i / width), (center.y + scale*(-0.5+(float)j / height))*height / ((float)width), MANDEL_NB, 50);
 			}
 
 	}

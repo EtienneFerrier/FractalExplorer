@@ -1,6 +1,6 @@
 /*
 Cette classe implémente le calcul complexe sur CPU.
-Beaucoup d'optimisations possibles.
+Optimisations possibles.
 */
 
 
