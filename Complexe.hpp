@@ -23,18 +23,21 @@ public:
 		y = 0.;
 	}
 
+	// Addition en place
 	void add(Complexe c)
 	{
 		x += c.x;
 		y += c.y;
 	}
 
+	// Soustraction en place
 	void sub(Complexe c)
 	{
 		x -= c.x;
 		y -= c.y;
 	}
 
+	// Multiplication en place
 	void mult(Complexe c)
 	{
 		float tmpx = x;
@@ -42,6 +45,7 @@ public:
 		y = y*c.x + tmpx*c.y;
 	}
 
+	// Norme euclidienne au carre
 	float squaredNorm()
 	{
 		return (x*x + y*y);

@@ -132,10 +132,6 @@ int main(int argc, char** argv)
 
 	}
 
-	SDL_DestroyTexture(display.tex);
-	SDL_DestroyRenderer(display.ren);
-	SDL_DestroyWindow(display.win);
-	SDL_Quit();
 	return 0;
 }
 

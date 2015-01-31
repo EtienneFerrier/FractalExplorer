@@ -24,40 +24,44 @@ public:
 	// Zoom vers la cible du clic
 	static void clicGauche(SDL_Event& event, Affichage* disp)
 	{
-		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5); // position du clic dans le plan compexe
-		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5);
-		cout << "Old x = " << x << endl;
-		disp->center.x = x + (disp->center.x - x) * ZOOM_FACTOR;
+		// Calcul de la position du clic dans le plan complexe
+		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5); 
+		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5); 
+		//cout << "Old x = " << x << endl;
+
+		// MAJ de la position du nouveau centre dans le plan complexe
+		disp->center.x = x + (disp->center.x - x) * ZOOM_FACTOR; 
 		disp->center.y = y + (disp->center.y - y) * ZOOM_FACTOR;
+		
+		// MAJ de l'echelle
 		disp->scale *= ZOOM_FACTOR;
-		disp->ss = stringstream();
-		disp->ss << "Centered in (" << disp->center.x << ", " << disp->center.y << ")";
+		
+		//Nouveau calcul de la fractale avec chrono
 		disp->start = chrono::system_clock::now();
 			Mandelbrot::computeMandel(disp->pixels, WIDTH, HEIGHT, disp->center, disp->scale);
 		disp->end = chrono::system_clock::now();
 		disp->duration = disp->end - disp->start;
 		cout << "Frame computing time : " << disp->duration.count() << endl;
+		
+		// Affichage de la fractale
 		disp->dessin();
-		SDL_SetWindowTitle(disp->win, disp->ss.str().c_str());
 	}
 
 	// Dezoome hors de la cible du clic
 	static void clicDroit(SDL_Event& event, Affichage* disp)
 	{
-		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5); // position du clic dans le plan compexe
-		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5);
-		cout << "Old x = " << x << endl;
+		/* Pour les commentaires, voir la methode Event::clicGauche */
+		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5); 
+		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5); 
+		//cout << "Old x = " << x << endl;
 		disp->center.x = x + (disp->center.x - x) / DEZOOM_FACTOR;
 		disp->center.y = y + (disp->center.y - y) / DEZOOM_FACTOR;
 		disp->scale /= DEZOOM_FACTOR;
-		disp->ss = stringstream();
-		disp->ss << "Centered in (" << disp->center.x << ", " << disp->center.y << ")";
 		disp->start = chrono::system_clock::now();
 			Mandelbrot::computeMandel(disp->pixels, WIDTH, HEIGHT, disp->center, disp->scale);
 		disp->end = chrono::system_clock::now();
 		disp->duration = disp->end - disp->start;
 		cout << "Frame computing time : " << disp->duration.count() << endl;
 		disp->dessin();
-		SDL_SetWindowTitle(disp->win, disp->ss.str().c_str());
 	}
 };

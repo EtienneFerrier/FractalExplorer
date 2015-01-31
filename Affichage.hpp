@@ -11,7 +11,6 @@ Ainsi que :
 - Une methode d'affichage d'une image calculee
 */
 
-
 #pragma once
 
 #include <stdio.h>
@@ -29,7 +28,7 @@ public:
 
 	/* Objets d'affichage SDL */
 	SDL_Window *win = 0;
-	SDL_Renderer *ren = 0;	
+	SDL_Renderer *ren = 0;
 	SDL_Texture * tex = 0;
 	float alpha = 0.0;
 
@@ -43,21 +42,26 @@ public:
 	Uint32* pixels = 0;
 
 	/* Parametres de la zone du plan complexe exploree */
-	Complexe center;		// Centre de l'image calculee
-	float scale;			// Largeur de l'image calculee
+	Complexe center = Complexe(0., 0.);		// Centre de l'image calculee. Initialement egal a (0, 0))
+	float scale = 4.;						// Largeur de l'image calculee. Initialement egale a 4
 
-
-	Affichage()
-	{
-		center = Complexe(0., 0.);
-		scale = 4.;
-	}
+	Affichage(){}
 
 	~Affichage()
 	{
 		free(pixels);
 	}
 
+	// Ferme et libere l'affichage SDL
+	void fermer()
+	{
+		SDL_DestroyTexture(tex);
+		SDL_DestroyRenderer(ren);
+		SDL_DestroyWindow(win);
+		SDL_Quit();
+	}
+
+	// Ouvre et initialise la fenetre SDL
 	int initSDLAffichage()
 	{
 		/* Initialisation de la SDL. Si ça se passe mal, on quitte */
@@ -92,8 +96,19 @@ public:
 		return 0;
 	}
 
+	// Met a jour le titre de la fenetre avec des informations sur la zone exploree du plan complexe
+	void majTitre()
+	{
+		ss = stringstream();
+		ss << "Centered in (" << center.x << ", " << center.y << "). Width : " << scale;
+		SDL_SetWindowTitle(win, ss.str().c_str());
+	}
+
+	// Affiche dans la fenetre
 	void dessin()
 	{
+		majTitre();
+
 		tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
 			SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
