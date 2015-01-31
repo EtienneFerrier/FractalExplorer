@@ -7,11 +7,11 @@
 #include <chrono>
 #include <SDL2/SDL.h>
 
+#include "Parametres.hpp"
 #include "Pixel.hpp"
 #include "Mandel.hpp"
-
-#define WIDTH 800
-#define HEIGHT 600
+#include "Events.hpp"
+#include "Affichage.hpp"
 
 using namespace std;
 
@@ -89,90 +89,22 @@ __global__ void addKernel(int *c, const int *a, const int *b)
 //
 
 
-Uint32 couleur(int r, int g, int b)
-{
-	return (((r << 8) + g) << 8) + b;
-}
-
-void dessin(SDL_Renderer * ren, SDL_Texture * tex, Uint32 * pixels, float alpha)
-{
-	//Uint32  *p;
-	//Uint8 r, g, b;
-	//int x, y;
-	//float beta = 1 - alpha;
-	//pixels = (Uint32*)malloc(WIDTH*HEIGHT*sizeof(Uint32));
-	//if (!pixels) { fprintf(stderr, "Erreur allocation\n"); return; }
-
-	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
-		SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
-
-	SDL_UpdateTexture(tex, NULL, pixels, WIDTH * sizeof(Uint32));
-	SDL_RenderCopy(ren, tex, NULL, NULL);
-	SDL_RenderPresent(ren);
-	SDL_DestroyTexture(tex);
-	//free(pixels);
-}
-
-
 int main(int argc, char** argv)
 {
-	SDL_Window *win = 0;
-	SDL_Renderer *ren = 0;
-	Uint32 * pixels = 0;
-	SDL_Texture * tex = 0;
-	float alpha = 0.0;
-
-	/* Initialisation de la SDL. Si ça se passe mal, on quitte */
-	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
-	{
-		fprintf(stderr, "Erreur initialisation\n");
-		return -1;
-	}
-
-	/* Création de la fenêtre et du renderer */
-	SDL_CreateWindowAndRenderer(WIDTH, HEIGHT, 0, &win, &ren);
-
-	if (!win || !ren)
-	{
-		fprintf(stderr, "Erreur à la création des fenêtres\n");
-		SDL_Quit();
-		return -1;
-	}
-
-	/* Affichage du fond noir */
-	SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
-	SDL_RenderClear(ren);
-	SDL_RenderPresent(ren);
-
-	/* Création de la surface qui sera affichee a l'ecran */
-	pixels = (Uint32*)malloc(WIDTH*HEIGHT*sizeof(Uint32));
-	if (!pixels) { fprintf(stderr, "Erreur allocation\n"); return -1; }
-
-	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
-		SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
-
-	Complexe center(0,0); // Centre de l'image calculee
-	float scale = 4; // Largeur de l'image calculee
-	float zoomFactor = 0.5; // Facteur de zoom
-	float dezoomFactor = 0.5; // Facteur de dezoom
+	Affichage display;
+	if(display.initSDLAffichage() < 0)
+		return 0;
 
 	/* Calcul de la fractale */ 
-	Mandelbrot::computeMandel(pixels, WIDTH, HEIGHT, center, scale);
+	Mandelbrot::computeMandel(display.pixels, WIDTH, HEIGHT, display.center, display.scale);
 
 	/* Affichage de la fractale */
-	dessin(ren, tex, pixels, alpha);
-
-	/* Variables de gestion  evenements */
-	bool quit = false;
-	SDL_Event event;
-	stringstream ss;
-	int mouseX;
-	int mouseY;
-	float x, y;
-	chrono::time_point<std::chrono::system_clock> start, end;
-	chrono::duration<double> duration;
+	display.dessin();
 
 	/* Boucle des evenements */
+	bool quit = false;
+	SDL_Event event;
+
 	while (!quit)
 	{
 		SDL_WaitEvent(&event);
@@ -183,45 +115,13 @@ int main(int argc, char** argv)
 			switch (event.button.button)
 			{
 			case SDL_BUTTON_LEFT:
-				mouseX = event.motion.x; // position du clic a l'ecran
-				mouseY = event.motion.y;
-				x = center.x + scale*(((float)mouseX) / WIDTH - 0.5); // position du clic dans le plan compexe
-				y = center.y + scale*(((float)mouseY) / HEIGHT - 0.5);
-				cout << "Old x = " << x << endl;
-				center.x = x + (center.x - x) * zoomFactor;
-				center.y = y + (center.y - y) * zoomFactor;
-				scale *= zoomFactor;
-				ss = stringstream();
-				ss << "Centered in (" << center.x << ", " << center.y << ")";
-				start = chrono::system_clock::now();
-				Mandelbrot::computeMandel(pixels, WIDTH, HEIGHT, center, scale);
-				end = chrono::system_clock::now();
-				duration = end - start;
-				cout << "Frame computing time : " << duration.count() << endl;
-				dessin(ren, tex, pixels, alpha);
-				SDL_SetWindowTitle(win, ss.str().c_str());
+				Events::clicGauche(event, &display);
 				break;
 			case SDL_BUTTON_RIGHT:
-				mouseX = event.motion.x; // position du clic a l'ecran
-				mouseY = event.motion.y;
-				x = center.x + scale*(((float)mouseX) / WIDTH - 0.5); // position du clic dans le plan compexe
-				y = center.y + scale*(((float)mouseY) / HEIGHT - 0.5);
-				cout << "Old x = " << x << endl;
-				center.x = x + (center.x - x) / dezoomFactor;
-				center.y = y + (center.y - y) / dezoomFactor;
-				scale /= dezoomFactor;
-				ss = stringstream();
-				ss << "Centered in (" << center.x << ", " << center.y << ")";
-				start = chrono::system_clock::now();
-				Mandelbrot::computeMandel(pixels, WIDTH, HEIGHT, center, scale);
-				end = chrono::system_clock::now();
-				duration = end - start;
-				cout << "Frame computing time : " << duration.count() << endl;
-				dessin(ren, tex, pixels, alpha);
-				SDL_SetWindowTitle(win, ss.str().c_str());
+				Events::clicDroit(event, &display);
 				break;
 			default:
-				SDL_ShowSimpleMessageBox(0, "Mouse", "Some other button was pressed!", win);
+				SDL_ShowSimpleMessageBox(0, "Mouse", "Some other button was pressed!", display.win);
 				break;
 			}
 			break;
@@ -232,9 +132,9 @@ int main(int argc, char** argv)
 
 	}
 
-	SDL_DestroyTexture(tex);
-	SDL_DestroyRenderer(ren);
-	SDL_DestroyWindow(win);
+	SDL_DestroyTexture(display.tex);
+	SDL_DestroyRenderer(display.ren);
+	SDL_DestroyWindow(display.win);
 	SDL_Quit();
 	return 0;
 }
