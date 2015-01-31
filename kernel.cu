@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <sstream>
+#include <chrono>
 #include <SDL2/SDL.h>
 
 #include "Pixel.hpp"
@@ -147,19 +149,67 @@ int main(int argc, char** argv)
 	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
 		SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
-	Mandelbrot::computeMandel(pixels, WIDTH, HEIGHT);
+	Complexe center(0,0);
+	float scale = 4;
+	float zoomFactor = 0.5;
+	Mandelbrot::computeMandel(pixels, WIDTH, HEIGHT, center, scale);
 
 	dessin(ren, tex, pixels, alpha);
 
-	//for (n = 0; n<1000L; n++) {
-	//	dessin(ren, tex, pixels, alpha);
-	//	alpha += pas;
-	//	if (alpha > 1.0) { alpha = 1.0; pas = -pas; }
-	//	if (alpha < 0.0) { alpha = 0.0; pas = -pas; }
-	//}
+	// handle events
 
-	SDL_Delay(10000);
+	bool quit = false;
+	SDL_Event event;
+	stringstream ss;
+	int mouseX;
+	int mouseY;
+	float x, y;
+	chrono::time_point<std::chrono::system_clock> start, end;
+	chrono::duration<double> duration;
+	while (!quit)
+	{
+		SDL_WaitEvent(&event);
 
+		switch (event.type)
+		{
+		case SDL_MOUSEBUTTONDOWN:
+			switch (event.button.button)
+			{
+			case SDL_BUTTON_LEFT:
+				mouseX = event.motion.x;
+				mouseY = event.motion.y;
+				x = center.x + scale*(((float)mouseX) / WIDTH - 0.5);
+				y = center.y + scale*(((float)mouseY) / HEIGHT - 0.5);
+				cout << "Old x = " << x << endl;
+				center.x = x + (center.x - x) * zoomFactor;
+				center.y = y + (center.y - y) * zoomFactor;
+				scale *= zoomFactor;
+				ss = stringstream();
+				ss << "Centered in " << center.x << " + i" << center.y;
+				start = chrono::system_clock::now();
+				Mandelbrot::computeMandel(pixels, WIDTH, HEIGHT, center, scale);
+				end = chrono::system_clock::now();
+				duration = end - start;
+				cout << "Frame computing time : " << duration.count() << endl;
+				dessin(ren, tex, pixels, alpha);
+				SDL_SetWindowTitle(win, ss.str().c_str());
+				break;
+			case SDL_BUTTON_RIGHT:
+				SDL_ShowSimpleMessageBox(0, "Mouse", "Right button was pressed!", win);
+				break;
+			default:
+				SDL_ShowSimpleMessageBox(0, "Mouse", "Some other button was pressed!", win);
+				break;
+			}
+			break;
+		case SDL_QUIT:
+			quit = true;
+			break;
+		}
+
+	}
+
+	SDL_DestroyTexture(tex);
 	SDL_DestroyRenderer(ren);
 	SDL_DestroyWindow(win);
 	SDL_Quit();
