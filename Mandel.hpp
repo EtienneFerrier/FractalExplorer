@@ -136,12 +136,12 @@ public:
 
 	// Methode de test.
 	// Calcule l'ensemble de Mandelbrot sur le carre [-2, 2]x[-2, 2] avec une coloration N&B (10 itérations).
-	static void computeMandel(Uint32* result, int width, int height, Complexe& center, float scale)
+	static void computeMandel(Uint32* result, Complexe& center, float scale)
 	{
-		for (int i = 0; i < width; i++)
-			for (int j = 0; j < height; j++)
+		for (int i = 0; i < WIDTH; i++)
+			for (int j = 0; j < HEIGHT; j++)
 			{
-				result[j*width + i] = computeColor(center.x + scale*(-0.5+(float)i / width), (center.y + scale*(-0.5+(float)j / height))*height / ((float)width), MANDEL_32_DARK, 50);
+				result[j*WIDTH + i] = computeColor(center.x + scale*(-0.5f + (float)i / WIDTH), (center.y + scale*(-0.5f + (float)j / HEIGHT))*HEIGHT / ((float)WIDTH), MANDEL_32_DARK, NB_ITERATIONS);
 			}
 
 	}

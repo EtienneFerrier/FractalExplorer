@@ -18,6 +18,8 @@ Elle fait l'interface entre la boucle d'evenements et les methodes de calcul et 
 using namespace std;
 
 
+int affichageGPU(Affichage* disp);
+
 class Events{
 public:
 
@@ -38,7 +40,12 @@ public:
 		
 		//Nouveau calcul de la fractale avec chrono
 		disp->start = chrono::system_clock::now();
-			Mandelbrot::computeMandel(disp->pixels, WIDTH, HEIGHT, disp->center, disp->scale);
+
+		if (GPU)
+			affichageGPU(disp);
+		else
+			Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
+
 		disp->end = chrono::system_clock::now();
 		disp->duration = disp->end - disp->start;
 		cout << "Frame computing time : " << disp->duration.count() << endl;
@@ -58,7 +65,10 @@ public:
 		disp->center.y = y + (disp->center.y - y) / DEZOOM_FACTOR;
 		disp->scale /= DEZOOM_FACTOR;
 		disp->start = chrono::system_clock::now();
-			Mandelbrot::computeMandel(disp->pixels, WIDTH, HEIGHT, disp->center, disp->scale);
+		if (GPU)
+			affichageGPU(disp);
+		else
+			Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
 		disp->end = chrono::system_clock::now();
 		disp->duration = disp->end - disp->start;
 		cout << "Frame computing time : " << disp->duration.count() << endl;

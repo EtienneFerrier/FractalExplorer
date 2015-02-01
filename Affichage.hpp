@@ -20,6 +20,7 @@ Ainsi que :
 #include <SDL2/SDL.h>
 
 #include "Parametres.hpp"
+#include "Complexe.hpp"
 
 using namespace std;
 

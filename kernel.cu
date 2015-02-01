@@ -19,12 +19,7 @@ __global__ void computeMandel_GPU(uint32_t* result, float xCenter, float yCenter
 
 using namespace std;
 
-#define ASSERT(x, msg, retcode) \
-    if (!(x)) \
-		    { \
-        cout << msg << " " << __FILE__ << ":" << __LINE__ << endl; \
-        return retcode; \
-		    }
+
 
 
 cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
@@ -124,17 +119,42 @@ int main(int argc, char** argv)
 	while (!quit)
 	{
 		SDL_WaitEvent(&event);
-
+		bool buttonDown;
 		switch (event.type)
 		{
 		case SDL_MOUSEBUTTONDOWN:
 			switch (event.button.button)
 			{
 			case SDL_BUTTON_LEFT:
-				//Events::clicGauche(event, &display);
+				buttonDown = true;
+				Events::clicGauche(event, &display);
+				while (buttonDown)
+				{
+					SDL_PumpEvents();
+					
+					if (SDL_GetMouseState(&(event.button.x), &(event.button.y)) & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+						Events::clicGauche(event, &display);
+					} else {
+						buttonDown = false;
+					}
+
+				}
 				break;
 			case SDL_BUTTON_RIGHT:
-				//Events::clicDroit(event, &display);
+				buttonDown = true;
+				Events::clicDroit(event, &display);
+				while (buttonDown)
+				{
+					SDL_PumpEvents();
+
+					if (SDL_GetMouseState(&(event.button.x), &(event.button.y)) & SDL_BUTTON(SDL_BUTTON_RIGHT)) {
+						Events::clicDroit(event, &display);
+					}
+					else {
+						buttonDown = false;
+					}
+
+				}
 				break;
 			default:
 				SDL_ShowSimpleMessageBox(0, "Mouse", "Some other button was pressed!", display.win);
@@ -151,24 +171,3 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-int affichageGPU(Affichage* disp)
-{
-	uint32_t *pixels_result;
-
-	ASSERT(cudaSuccess == cudaMalloc(&pixels_result, WIDTH*HEIGHT * sizeof(uint32_t)), "Device allocation of pixel matrix failed", -1);
-
-	dim3 cudaBlockSize(32, 32, 1);
-	dim3 cudaGridSize((WIDTH-1)/cudaBlockSize.x +1 , (HEIGHT-1)/cudaBlockSize.y +1);
-	computeMandel_GPU << <cudaGridSize, cudaBlockSize >> >(pixels_result, disp->center.x, disp->center.y, disp->scale);
-
-	ASSERT(cudaSuccess == cudaGetLastError(), "Kernel launch failed", -1);
-	ASSERT(cudaSuccess == cudaDeviceSynchronize(), "Kernel synchronization failed", -1);
-
-	ASSERT(cudaSuccess == cudaMemcpy(disp->pixels, pixels_result, WIDTH*HEIGHT *sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of pixel matrix from device to host failed", -1);
-
-	ASSERT(cudaSuccess == cudaFree(pixels_result), "Device deallocation failed", -1);
-
-	disp->dessin();
-
-	return EXIT_SUCCESS;
-}
