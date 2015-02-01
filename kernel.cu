@@ -13,6 +13,10 @@
 #include "Events.hpp"
 #include "Affichage.hpp"
 
+
+
+__global__ void computeMandel_GPU(uint32_t* result, float xCenter, float yCenter, float scale);
+
 using namespace std;
 
 #define ASSERT(x, msg, retcode) \
@@ -96,6 +100,7 @@ __global__ void addKernel(int *c, const int *a, const int *b)
 //
 //
 
+int affichageGPU(Affichage* disp);
 
 int main(int argc, char** argv)
 {
