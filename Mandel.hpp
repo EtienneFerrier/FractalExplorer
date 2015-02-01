@@ -41,12 +41,12 @@ public:
 		int m = k % p;
 
 		if (k < p)
-			return couleur(0, 0, 255*m/p);
-		else if (k < 2*p)
-			return couleur(255*m/p, 0, 255);
-		else if (k < 3*p)
-			return couleur(255, 0, (255 - 255*m/p));
-		else return couleur(255, 255*m/p, 0);
+			return couleur(0, 0, 255 * m / p);
+		else if (k < 2 * p)
+			return couleur(255 * m / p, 0, 255);
+		else if (k < 3 * p)
+			return couleur(255, 0, (255 - 255 * m / p));
+		else return couleur(255, 255 * m / p, 0);
 
 	}
 
@@ -59,13 +59,34 @@ public:
 		int m = k % p;
 
 		if (k < p)
-			return couleur(255, 255*m/p, 0);
-		else if (k < 2*p)
+			return couleur(255, 255 * m / p, 0);
+		else if (k < 2 * p)
 			return couleur(255 - 255 * m / p, 255, 0);
 		else if (k < 3 * p)
 			return couleur(0, 255, 255 * m / p);
-		else return couleur(0, 255-255*m/p, 255);
+		else return couleur(0, 255 - 255 * m / p, 255);
 
+	}
+
+	// Itère la fonction génératrice sur un point
+	inline static int iteratePoint(Complexe& z, Complexe& c, int& nbIterations) {
+		int count = 0;
+		float xSquare = z.x * z.x;
+		float ySquare = z.y * z.y;
+		float temp;
+		while (count < nbIterations && (xSquare + ySquare)  < 4.)
+		{
+			//z.mult(z);
+			temp = z.x;
+			z.x = xSquare - ySquare;
+			z.y *= temp;
+			z.y += z.y;
+			z.add(c);
+			count++;
+			xSquare = z.x * z.x;
+			ySquare = z.y * z.y;
+		}
+		return count;
 	}
 
 	// Calcule la couleur d'un point de l'ensemble de Mandelbrot en fonction d'une méthode de coloration et d'un nombre d'itérations.
@@ -77,13 +98,7 @@ public:
 		switch (methode)
 		{
 		case MANDEL_32_DARK:
-			count = 0;
-			while (count < nbIterations && z.squaredNorm() < 4.)
-			{
-				z.mult(z);
-				z.add(c);
-				count++;
-			}
+			count = iteratePoint(z, c, nbIterations);
 			if (z.squaredNorm() < 4.)
 				return couleur(0, 0, 0);
 			else return computeColor_32_DARK(nbIterations, count, 1);
