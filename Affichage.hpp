@@ -45,11 +45,13 @@ public:
 	Complexe center = Complexe(0., 0.);		// Centre de l'image calculee. Initialement egal a (0, 0))
 	float scale = 4.;						// Largeur de l'image calculee. Initialement egale a 4
 
-	Affichage(){}
+	Affichage(){
+		pixels = new Uint32[WIDTH*HEIGHT];
+	}
 
 	~Affichage()
 	{
-		free(pixels);
+		delete[] pixels;
 	}
 
 	// Ferme et libere l'affichage SDL

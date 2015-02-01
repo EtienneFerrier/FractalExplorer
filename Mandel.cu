@@ -66,5 +66,6 @@ __global__ void computeMandel_GPU(uint32_t* result, float xCenter, float yCenter
 	int count = iteratePoint(xCenter + scale*(-0.5 + (float)i / WIDTH), (yCenter + scale*(-0.5 + (float)j / HEIGHT))*HEIGHT / ((float)WIDTH), NB_ITERATIONS);
 	if (count == -1)
 		result[j* WIDTH + i] = couleur(0, 0, 0);
-	result[j* WIDTH + i] = computeColor_32_DARK(NB_ITERATIONS, count, 1);
+	else
+		result[j* WIDTH + i] = computeColor_32_DARK(NB_ITERATIONS, count, 1);
 }

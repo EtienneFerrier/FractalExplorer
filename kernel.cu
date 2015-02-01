@@ -158,7 +158,7 @@ int affichageGPU(Affichage* disp)
 	ASSERT(cudaSuccess == cudaMalloc(&pixels_result, WIDTH*HEIGHT * sizeof(uint32_t)), "Device allocation of pixel matrix failed", -1);
 
 	dim3 cudaBlockSize(32, 32, 1);
-	dim3 cudaGridSize(WIDTH, HEIGHT);
+	dim3 cudaGridSize((WIDTH-1)/cudaBlockSize.x +1 , (HEIGHT-1)/cudaBlockSize.y +1);
 	computeMandel_GPU << <cudaGridSize, cudaBlockSize >> >(pixels_result, disp->center.x, disp->center.y, disp->scale);
 
 	ASSERT(cudaSuccess == cudaGetLastError(), "Kernel launch failed", -1);
