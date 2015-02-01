@@ -15,6 +15,14 @@
 
 using namespace std;
 
+#define ASSERT(x, msg, retcode) \
+    if (!(x)) \
+		    { \
+        cout << msg << " " << __FILE__ << ":" << __LINE__ << endl; \
+        return retcode; \
+		    }
+
+
 cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
 
 __global__ void addKernel(int *c, const int *a, const int *b)
@@ -96,10 +104,13 @@ int main(int argc, char** argv)
 		return 0;
 
 	/* Calcul de la fractale */ 
-	Mandelbrot::computeMandel(display.pixels, WIDTH, HEIGHT, display.center, display.scale);
+	//Mandelbrot::computeMandel(display.pixels, WIDTH, HEIGHT, display.center, display.scale);
+
+	affichageGPU(&display);
+	
 
 	/* Affichage de la fractale */
-	display.dessin();
+	//display.dessin();
 
 	/* Boucle des evenements */
 	bool quit = false;
@@ -115,10 +126,10 @@ int main(int argc, char** argv)
 			switch (event.button.button)
 			{
 			case SDL_BUTTON_LEFT:
-				Events::clicGauche(event, &display);
+				//Events::clicGauche(event, &display);
 				break;
 			case SDL_BUTTON_RIGHT:
-				Events::clicDroit(event, &display);
+				//Events::clicDroit(event, &display);
 				break;
 			default:
 				SDL_ShowSimpleMessageBox(0, "Mouse", "Some other button was pressed!", display.win);
@@ -135,82 +146,24 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-// Helper function for using CUDA to add vectors in parallel.
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
+int affichageGPU(Affichage* disp)
 {
-	int *dev_a = 0;
-	int *dev_b = 0;
-	int *dev_c = 0;
-	cudaError_t cudaStatus;
+	uint32_t *pixels_result;
 
-	// Choose which GPU to run on, change this on a multi-GPU system.
-	cudaStatus = cudaSetDevice(0);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
-		goto Error;
-	}
+	ASSERT(cudaSuccess == cudaMalloc(&pixels_result, WIDTH*HEIGHT * sizeof(uint32_t)), "Device allocation of pixel matrix failed", -1);
 
-	// Allocate GPU buffers for three vectors (two input, one output)    .
-	cudaStatus = cudaMalloc((void**)&dev_c, size * sizeof(int));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		goto Error;
-	}
+	dim3 cudaBlockSize(32, 32, 1);
+	dim3 cudaGridSize(WIDTH, HEIGHT);
+	computeMandel_GPU << <cudaGridSize, cudaBlockSize >> >(pixels_result, disp->center.x, disp->center.y, disp->scale);
 
-	cudaStatus = cudaMalloc((void**)&dev_a, size * sizeof(int));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		goto Error;
-	}
+	ASSERT(cudaSuccess == cudaGetLastError(), "Kernel launch failed", -1);
+	ASSERT(cudaSuccess == cudaDeviceSynchronize(), "Kernel synchronization failed", -1);
 
-	cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		goto Error;
-	}
+	ASSERT(cudaSuccess == cudaMemcpy(disp->pixels, pixels_result, WIDTH*HEIGHT *sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of pixel matrix from device to host failed", -1);
 
-	// Copy input vectors from host memory to GPU buffers.
-	cudaStatus = cudaMemcpy(dev_a, a, size * sizeof(int), cudaMemcpyHostToDevice);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy failed!");
-		goto Error;
-	}
+	ASSERT(cudaSuccess == cudaFree(pixels_result), "Device deallocation failed", -1);
 
-	cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy failed!");
-		goto Error;
-	}
+	disp->dessin();
 
-	// Launch a kernel on the GPU with one thread for each element.
-	addKernel<<< 1, size>>>(dev_c, dev_a, dev_b);
-
-	// Check for any errors launching the kernel
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-		goto Error;
-	}
-
-	// cudaDeviceSynchronize waits for the kernel to finish, and returns
-	// any errors encountered during the launch.
-	cudaStatus = cudaDeviceSynchronize();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-		goto Error;
-	}
-
-	// Copy output vector from GPU buffer to host memory.
-	cudaStatus = cudaMemcpy(c, dev_c, size * sizeof(int), cudaMemcpyDeviceToHost);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy failed!");
-		goto Error;
-	}
-
-Error:
-	cudaFree(dev_c);
-	cudaFree(dev_a);
-	cudaFree(dev_b);
-
-	return cudaStatus;
+	return EXIT_SUCCESS;
 }
