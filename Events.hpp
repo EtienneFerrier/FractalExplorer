@@ -25,8 +25,8 @@ public:
 	static void clicGauche(SDL_Event& event, Affichage* disp)
 	{
 		// Calcul de la position du clic dans le plan complexe
-		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5); 
-		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5); 
+		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5f); 
+		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5f); 
 		//cout << "Old x = " << x << endl;
 
 		// MAJ de la position du nouveau centre dans le plan complexe
@@ -51,8 +51,8 @@ public:
 	static void clicDroit(SDL_Event& event, Affichage* disp)
 	{
 		/* Pour les commentaires, voir la methode Event::clicGauche */
-		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5); 
-		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5); 
+		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5f); 
+		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5f); 
 		//cout << "Old x = " << x << endl;
 		disp->center.x = x + (disp->center.x - x) / DEZOOM_FACTOR;
 		disp->center.y = y + (disp->center.y - y) / DEZOOM_FACTOR;

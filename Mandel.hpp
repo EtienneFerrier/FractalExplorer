@@ -102,7 +102,6 @@ public:
 			if (z.squaredNorm() < 4.)
 				return couleur(0, 0, 0);
 			else return computeColor_32_DARK(nbIterations, count, 1);
-			break;
 		case MANDEL_32_CLASSIC:
 			count = 0;
 			while (count < nbIterations && z.squaredNorm() < 4.)
@@ -114,7 +113,6 @@ public:
 			if (z.squaredNorm() < 4.)
 				return couleur(0, 0, 0);
 			else return computeColor_32_CLASSIC(nbIterations, count, 1);
-			break;
 		case MANDEL_NB:
 			count = 0;
 			while (count < nbIterations && z.squaredNorm() < 4.)
@@ -126,16 +124,13 @@ public:
 			if (z.squaredNorm() < 4.)
 				return couleur(0, 0, 0);
 			else return couleur(255, 255, 255);
-			break;
 		case CERCLE_NB:
 			if (z.squaredNorm() > 2.)
 				return couleur(0, 0, 0);
 			else return couleur(255, 255, 255);
-			break;
 		default:
 			std::cout << "Pas de methode de coloration" << std::endl;
 			return couleur(255, 0, 0);
-			break;
 		}
 	}
 
