@@ -1,3 +1,7 @@
+/*
+Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU.
+*/
+
 #pragma once
 
 #include "cuda_runtime.h"
@@ -17,7 +21,7 @@
         return retcode; \
 			    }
 
-
+// Applique l’algorithme de Mandelbrot au point (xC, yC)
 __device__ static int iteratePoint(float xC, float yC, int nbIterations) {
 	int count = 0;
 	float x = 0;
@@ -49,7 +53,8 @@ __device__ static Uint32 couleur(int r, int g, int b)
 	return (((r << 8) + g) << 8) + b;
 }
 
-
+// Methode de coloration en couleur 32bits version sombre
+// Augmenter divFactor permet d'avoir une fréquence plus importante de variation des couleurs (1 par defaut)
 __device__ static Uint32 computeColor_32_DARK(int countMax, int count, int divFactor)
 {
 	int k = ((count * divFactor) % countMax);
@@ -66,7 +71,7 @@ __device__ static Uint32 computeColor_32_DARK(int countMax, int count, int divFa
 
 }
 
-
+// Fonction décrivant le thread GPU
 __global__ void computeMandel_GPU(uint32_t* result, float xCenter, float yCenter, float scale)
 {
 	const unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
@@ -83,7 +88,7 @@ __global__ void computeMandel_GPU(uint32_t* result, float xCenter, float yCenter
 }
 
 
-
+// Fonction de communication avec le GPU, lance les thread et gère les échanges mémoire
 int affichageGPU(Affichage* disp)
 {
 	uint32_t *pixels_result;
