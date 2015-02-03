@@ -30,6 +30,7 @@ int affichageGPU(Affichage* disp);
 int main(int argc, char** argv)
 {
 	BigFloat big;
+	big.decimals[1] = 1;
 	big.display();
 	while (1);
 	return 0;

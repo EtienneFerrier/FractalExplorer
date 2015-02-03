@@ -11,6 +11,9 @@
 #include <stdint.h>
 #include <string>
 #include <iostream>
+#include <math.h>
+
+
 
 class BigFloat {
 
@@ -24,6 +27,7 @@ public:
 			decimals[i] = 0;
 		base = 0;
 	}
+
 	BigFloat(int k, uint32_t digit) {
 		decimals = new uint32_t[BIG_FLOAT_SIZE];
 		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
@@ -31,14 +35,42 @@ public:
 		base = 0;
 		decimals[k] = digit;
 	}
+
+	BigFloat(float f) {
+		decimals = new uint32_t[BIG_FLOAT_SIZE];
+		base = (int32_t)floor(f);
+		float dec = f - floor(f);
+
+		if (dec == 0.f)
+			decimals[0] = 0;
+		else
+		{
+			float logA = 32 * log(2.f) + log(dec);
+			decimals[0] = (uint32_t)exp(logA);
+		}
+		for (int i = 1; i < BIG_FLOAT_SIZE; i++)
+			decimals[i] = 0;
+	}
+
 	~BigFloat() {
 		delete[] decimals;
 	}
+
 	void display() {
-		std::cout << base << ",";
-		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
-			std::cout << decimals[i];
-		std::cout << std::endl;
+
+		int ind = 0; //Permier decimal non nul
+		while (ind < BIG_FLOAT_SIZE && decimals[ind] == 0 )
+			ind++;
+
+		if (ind == BIG_FLOAT_SIZE)
+			std::cout << base << std::endl;
+		else
+		{
+			float logx = log10((float)decimals[ind]) - 32 * (ind + 1)*log10(2.f);
+			float n10 = floor(logx);
+			float decPart10 = pow(10.f, logx - n10);
+			std::cout << base << " + " << decPart10 << ".10^" << (int)n10 << std::endl;
+		}
 	}
 
 	uint32_t& operator[](int i) {
