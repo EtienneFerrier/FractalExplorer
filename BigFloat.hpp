@@ -2,6 +2,8 @@
  * Classe représentant des flottants sur BIG_FLOAT_SIZE*32 bits
  * Le réel correspondant est base + dec[0].2^-32 + dec[1].2^-64 + ...
  * base est la partie entière du réel, la partie décimale est positive.
+ * Dans cette implémentation, on fait l’hypothèse que les overflow sont 
+ * impossibles sur la partie entière.
  */
 
 
@@ -99,7 +101,7 @@ public:
 
 	// Négation inplace d’un BigFloat
 	static void negate(BigFloat& a) {
-		uint32_t max = -1;
+		uint32_t max = 0xFFFFFFFF;
 		for (int i = BIG_FLOAT_SIZE - 1; i >= 0; i--) {
 			a[i] = max - a[i];
 		}
@@ -108,7 +110,7 @@ public:
 
 
 	// Fonction servant à multiplier deux chiffres
-	static inline bool multDigDig(uint32_t& a, uint32_t& b, uint32_t& first, uint32_t& second, bool carry) {
+	static inline bool multDigDig(uint32_t& a, uint32_t& b, uint32_t& little, uint32_t& big, bool carry) {
 		uint32_t mask = 0xFFFF;
 		uint32_t ah, al, bh, bl, midh, midl, ahbh, ahbl, albh, albl, temp;
 
@@ -130,48 +132,48 @@ public:
 		// On coupe le middle
 		midl = ahbl + albh;
 		temp = ((ahbl < midl) << 16);
-		second += ((ahbl < midl) << 16) + carry; // Ajout de la retenue liée à (ahbl + albh) et du carry issu de la multiplication précédente
-		carry = (second < temp + carry); // Initialisation de la prochaine carry
+		big += ((ahbl < midl) << 16) + carry; // Ajout de la retenue liée à (ahbl + albh) et du carry issu de la multiplication précédente
+		carry = (big < temp + carry); // Initialisation de la prochaine carry
 		midh = midl >> 16;
 		midl = midl << 16;
 
-		first += albl;
-		second += (albl > (first)); // On s’occupe ici de la retenue du chiffre 0 qui concerne donc le chiffre -1
-		carry |= ((second) == 0); // Le carry concerne le chiffre d’indice -2 et non pas -1 comme dans l’addition
+		little += albl;
+		big += (albl >(little)); // On s’occupe ici de la retenue du chiffre 0 qui concerne donc le chiffre -1
+		carry |= ((big) == 0); // Le carry concerne le chiffre d’indice -2 et non pas -1 comme dans l’addition
 
-		first += midl;
-		second += (midl > (first));
-		carry |= ((second) == 0);
+		little += midl;
+		big += (midl >(little));
+		carry |= ((big) == 0);
 
-		second += midh;
-		carry |= (midh > second);
+		big += midh;
+		carry |= (midh > big);
 
-		second += ahbh;
-		carry |= (ahbh > second);
+		big += ahbh;
+		carry |= (ahbh > big);
 
 		return carry;
 	}
 
 
 	// Fonction servant à multiplier un chiffre avec la partie entière
-	static inline int32_t multDigBase(uint32_t& a, BigFloat& b, uint32_t& first, uint32_t& second, bool carry) {
-		uint32_t fakeFirst = 0;
-		uint32_t fakeSecond = 0;
+	static inline int32_t multDigBase(uint32_t& a, BigFloat& b, uint32_t& little, uint32_t& big, bool carry) {
 		uint32_t ubase;
 		if (b.base >= 0) {
 			ubase = (b.base);
-			carry = multDigDig(a, ubase, first, second, carry);
+			carry = multDigDig(a, ubase, little, big, carry);
 			return carry;
 		}
 		else { // Cas très chiant, il faut considérer une retenue négative
+			uint32_t fakeLittle = 0;
+			uint32_t fakeBig = 0;
 			ubase = (-b.base);
-			carry = multDigDig(a, ubase, fakeFirst, fakeSecond, carry);
-			second -= fakeSecond;
-			first -= (second > fakeSecond);
-			bool negCarry = (first == 0xFFFFFFFF);
+			multDigDig(a, ubase, fakeLittle, fakeBig, carry);
+			little -= fakeLittle;
+			big -= (little > fakeLittle);
+			int32_t negCarry = (big == 0xFFFFFFFF); // Le seul cas d’overflow possible car on a retiré 0 ou 1
 
-			first -= fakeFirst;
-			negCarry |= (first > fakeFirst);
+			big -= fakeBig;
+			negCarry |= (big > fakeBig);
 			return -negCarry;
 		}
 	}
@@ -193,28 +195,79 @@ public:
 		uint32_t fakeDigit = 0;
 		carry = multDigDig(a[i], b[BIG_FLOAT_SIZE - 1], fakeDigit, temp[BIG_FLOAT_SIZE - 1], 0);
 
+
+		// Calcul des multiplications sur les chiffres "standard"
 		for (int j = BIG_FLOAT_SIZE - i - 2; j >= 0; j++)
 			carry = multDigDig(a[i], b[j], temp[i + j + 1], temp[i + j], carry);
 
+
+		// Multiplication impliquant la base
 		int32_t baseCarry;
 		if (i >= 1) {
-			baseCarry = multDigBase(a[i], b, temp[i - 1], temp[i], carry);
-			if (i == 1) {
-				temp.base += baseCarry;
+			// Quand le résultat ne va pas dans la base
+			baseCarry = multDigBase(a[i], b, temp[i], temp[i - 1], carry); // /!\ Peut être négative ! /!\
+			// Propagation de la retenue
+			int k = i - 2;
+			while (k >= 0 && (baseCarry != 0)) {
+				temp[k] += carry;
+				baseCarry = (temp[k] == 0 && baseCarry == 1) - (temp[k] == 0xFFFFFFFF && baseCarry == -1);
 			}
-			// AJOUTER PROPAGATION CARRY
+			// Retenue s’appliquant à la base
+			if (k==-1)
+				temp.base += baseCarry;
 		}
 		else {
-			uint32_t fakeBase = 0;
-			baseCarry = multDigBase(a[i], b, fakeBase, temp[0], carry);
-			// ATTENTION A GERER LE SIGNE DE FAKEBASE
+			// Quand le résultat va dans la base
+			uint32_t fakeBase = 0; // Nécessaire de passer par un uint32_t
+			baseCarry = multDigBase(a[i], b, temp[0], fakeBase, carry);
+			temp.base += fakeBase;
+			if (b.base >= 0) {
+				temp.base += fakeBase;
+			}
+			else {
+				temp.base += ((int32_t)fakeBase) - 0xFFFFFFFF;
+			}
 		}
+	}
+
+	static void multBase(BigFloat& a, BigFloat& b, BigFloat& temp) {
+		if (a.base == 0)
+			return;
+		else if (a.base > 0) {
+			bool carry = 0;
+			for (int j = BIG_FLOAT_SIZE - 1; j > 0; j++) {
+				carry = (multDigBase(b[j], a, temp[j], temp[j - 1], carry) == 1); // Ne peut pas retourner de retenue négative puisque la base est positive
+			}
+		}
+		else {
+			bool carry;
+			for (int j = BIG_FLOAT_SIZE - 1; j > 0; j++) {
+				carry = (multDigBase(b[j], a, temp[j], temp[j - 1], 0) == -1); // Retourne une retenue négative, on prend l’opposé
+				// Propagation de la retenue négative 
+				// (pour éviter de remonter à chaque fois il faudrait rendre multDigDig 
+				// plus compliquée. Cependant, on peut négliger ces remontées de retenues.
+				int k = j - 2;
+				while (k >= 0 && (carry != 0)) {
+					temp[k] -= carry;
+					carry = (temp[k] == 0xFFFFFFFF && carry == 1);
+				}
+				if (k == -1)
+					temp.base -= carry;
+			}
+		}
+		// Multiplication de la base avec le premier chiffre
+		uint32_t fakeBase = 0;
+		multDigBase(b[0], a, temp[0], fakeBase, 0); // Il ne peut pas y avoir de retenue dans l’espace que l’on considère
+		// Multiplication base base
+		temp.base += a.base * b.base;
 	}
 
 
 	// Multiplication de deux BigFloat. Multiplie b par chaque chiffre de a.
 	static void mult(BigFloat& a, BigFloat& b, BigFloat& res) {
-
+		for (int i = BIG_FLOAT_SIZE - 1; i >= 0; i++)
+			multDigit(a, b, i, res);
+		multBase(a, b, res);
 	}
 
 };
