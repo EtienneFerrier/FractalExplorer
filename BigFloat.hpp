@@ -108,11 +108,17 @@ public:
 
 	// Négation inplace d’un BigFloat
 	static void negate(BigFloat& a) {
-		uint32_t max = 0xFFFFFFFF;
+		// fullZero vaut vrai ssi on n’a rencontré que des zéros auparavant, c’est-à-dire qu’il n’y a pas de retenue
+		bool fullZero = true;
 		for (int i = BIG_FLOAT_SIZE - 1; i >= 0; i--) {
-			a[i] = max - a[i];
+			if (fullZero) {
+				a[i] = -a[i];
+				fullZero &= (a[i] == 0);
+			}
+			else
+				a[i] = -a[i]-1;
 		}
-		a.base = -a.base;
+		a.base = - (1-fullZero) - a.base;
 	}
 
 

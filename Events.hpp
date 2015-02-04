@@ -42,7 +42,7 @@ public:
 		// MAJ de l'echelle
 		if (!bigZoomFactor)
 			bigZoomFactor = new BigFloat(disp->scale);
-		BigFloat temp(0);
+		BigFloat temp;
 		BigFloat::mult(ZOOM_FACTOR, (*bigZoomFactor), temp);
 		bigZoomFactor = &temp;
 		disp->scale *= ZOOM_FACTOR;

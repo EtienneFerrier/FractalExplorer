@@ -70,37 +70,46 @@ public:
 	// Itère la fonction génératrice sur un point
 	inline static int iteratePoint(BigFloat& xStart, BigFloat& yStart, int& nbIterations) {
 		int count = 0;
-		BigFloat x;
-		BigFloat y;
-		BigFloat xx;
-		BigFloat yy;
-		BigFloat temp;
-		BigFloat xy;
-		while (count < nbIterations && temp.base < 4.)
+		BigFloat *x = new BigFloat();
+		BigFloat *y = new BigFloat();
+		BigFloat *xx = new BigFloat();
+		BigFloat *yy = new BigFloat();
+		BigFloat *temp = new BigFloat();
+		BigFloat *xy = new BigFloat();
+		while (count < nbIterations && temp->base < 4.)
 		{
-			
-			temp = BigFloat(x);
+			delete temp;
+			temp = new BigFloat(*x);
 			// x’ = xx - yy
-			BigFloat::negate(yy);
-			BigFloat::add(xx, yy, x);
+			BigFloat::negate(*yy);
+			BigFloat::add(*xx, *yy, *x);
 			// y’ = 2xy
-			BigFloat::mult(temp, y, xy);
-			BigFloat::add(xy, xy, y);
+			BigFloat::mult(*temp, *y, *xy);
+			BigFloat::add(*xy, *xy, *y);
 			// x’ = x + xStart
-			BigFloat::add(xStart, x);
+			BigFloat::add(xStart, *x);
 			// y’ = y + yStart
-			BigFloat::add(yStart, y);
-			count++;
+			BigFloat::add(yStart, *y);
 			//xx = x * x
-			xx = BigFloat();
-			BigFloat::mult(x, x, xx);
+			delete xx;
+			xx = new BigFloat();
+			BigFloat::mult(*x, *x, *xx);
 			//xx = y * y
-			yy = BigFloat();
-			BigFloat::mult(y, y, yy);
+			delete yy;
+			yy = new BigFloat();
+			BigFloat::mult(*y, *y, *yy);
 			//temp = xx + yy
-			BigFloat::add(xx, yy, temp);
+			BigFloat::add(*xx, *yy, *temp);
+
+			count++;
 			
 		}
+		delete x;
+		delete y;
+		delete xx;
+		delete yy;
+		delete temp;
+		delete xy;
 		return count;
 	}
 
