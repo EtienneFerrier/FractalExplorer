@@ -54,6 +54,13 @@ public:
 			decimals[i] = 0;
 	}
 
+	BigFloat(BigFloat& a) {
+		decimals = new uint32_t[BIG_FLOAT_SIZE];
+		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
+			decimals[i] = a[i];
+		base = a.base;
+	}
+
 	~BigFloat() {
 		delete[] decimals;
 	}
@@ -89,7 +96,7 @@ public:
 		res.base = a.base + b.base + carry;
 	}
 
-	// Addition inplace
+	// Addition inplace, ajoute a dans b.
 	static void add(BigFloat& a, BigFloat& b) {
 		bool carry = 0;
 		for (int i = BIG_FLOAT_SIZE - 1; i > 0; i--) {
@@ -113,6 +120,7 @@ public:
 	static inline bool multDigDig(uint32_t& a, uint32_t& b, uint32_t& little, uint32_t& big, bool carry) {
 		uint32_t mask = 0xFFFF;
 		uint32_t ah, al, bh, bl, midh, midl, ahbh, ahbl, albh, albl, temp;
+		bool tempCarry;
 
 		// On se ramene à des int de 16 bits
 		ah = a >> 16;
@@ -131,25 +139,27 @@ public:
 
 		// On coupe le middle
 		midl = ahbl + albh;
-		temp = ((ahbl < midl) << 16);
-		big += ((ahbl < midl) << 16) + carry; // Ajout de la retenue liée à (ahbl + albh) et du carry issu de la multiplication précédente
+		temp = ((midl < ahbl) << 16);
+		big += temp + carry; // Ajout de la retenue liée à (ahbl + albh) et du carry issu de la multiplication précédente
 		carry = (big < temp + carry); // Initialisation de la prochaine carry
 		midh = midl >> 16;
 		midl = midl << 16;
 
 		little += albl;
-		big += (albl >(little)); // On s’occupe ici de la retenue du chiffre 0 qui concerne donc le chiffre -1
-		carry |= ((big) == 0); // Le carry concerne le chiffre d’indice -2 et non pas -1 comme dans l’addition
+		tempCarry = (albl > little);
+		big += tempCarry; // On s’occupe ici de la retenue du chiffre 0 qui concerne donc le chiffre -1
+		carry |= (((big) == 0) && tempCarry); // Le carry concerne le chiffre d’indice -2 et non pas -1 comme dans l’addition
 
 		little += midl;
-		big += (midl >(little));
-		carry |= ((big) == 0);
+		tempCarry =(midl >little);
+		big += tempCarry;
+		carry |= ((big == 0) && tempCarry);
 
 		big += midh;
-		carry |= (midh > big);
+		carry |= (big < midh);
 
 		big += ahbh;
-		carry |= (ahbh > big);
+		carry |= (big < ahbh);
 
 		return carry;
 	}
@@ -193,11 +203,11 @@ public:
 
 		// Il faut traiter le chiffre de plus basse importance séparément
 		uint32_t fakeDigit = 0;
-		carry = multDigDig(a[i], b[BIG_FLOAT_SIZE - 1], fakeDigit, temp[BIG_FLOAT_SIZE - 1], 0);
-
+		carry = multDigDig(a[i], b[BIG_FLOAT_SIZE - i - 1], fakeDigit, temp[BIG_FLOAT_SIZE - 1], 0);
+		// PRENDRE EN COMPTE UN ARRONDI ?
 
 		// Calcul des multiplications sur les chiffres "standard"
-		for (int j = BIG_FLOAT_SIZE - i - 2; j >= 0; j++)
+		for (int j = BIG_FLOAT_SIZE - i - 2; j >= 0; j--)
 			carry = multDigDig(a[i], b[j], temp[i + j + 1], temp[i + j], carry);
 
 
@@ -211,6 +221,7 @@ public:
 			while (k >= 0 && (baseCarry != 0)) {
 				temp[k] += carry;
 				baseCarry = (temp[k] == 0 && baseCarry == 1) - (temp[k] == 0xFFFFFFFF && baseCarry == -1);
+				k--;
 			}
 			// Retenue s’appliquant à la base
 			if (k==-1)
@@ -219,13 +230,12 @@ public:
 		else {
 			// Quand le résultat va dans la base
 			uint32_t fakeBase = 0; // Nécessaire de passer par un uint32_t
-			baseCarry = multDigBase(a[i], b, temp[0], fakeBase, carry);
-			temp.base += fakeBase;
+			multDigBase(a[i], b, temp[0], fakeBase, carry); // La carry renvoyée vaut nécessairement 0 selon nos hypothèses
 			if (b.base >= 0) {
 				temp.base += fakeBase;
 			}
-			else {
-				temp.base += ((int32_t)fakeBase) - 0xFFFFFFFF;
+			else if (fakeBase != 0) {
+				temp.base += ((int32_t)fakeBase) - 0xFFFFFFFF; // Si b.base est négatif alors fakeBase vaut temp.base + 0xFFFFFFFF
 			}
 		}
 	}
@@ -235,13 +245,13 @@ public:
 			return;
 		else if (a.base > 0) {
 			bool carry = 0;
-			for (int j = BIG_FLOAT_SIZE - 1; j > 0; j++) {
+			for (int j = BIG_FLOAT_SIZE - 1; j > 0; j--) {
 				carry = (multDigBase(b[j], a, temp[j], temp[j - 1], carry) == 1); // Ne peut pas retourner de retenue négative puisque la base est positive
 			}
 		}
 		else {
 			bool carry;
-			for (int j = BIG_FLOAT_SIZE - 1; j > 0; j++) {
+			for (int j = BIG_FLOAT_SIZE - 1; j > 0; j--) {
 				carry = (multDigBase(b[j], a, temp[j], temp[j - 1], 0) == -1); // Retourne une retenue négative, on prend l’opposé
 				// Propagation de la retenue négative 
 				// (pour éviter de remonter à chaque fois il faudrait rendre multDigDig 
@@ -250,6 +260,7 @@ public:
 				while (k >= 0 && (carry != 0)) {
 					temp[k] -= carry;
 					carry = (temp[k] == 0xFFFFFFFF && carry == 1);
+					k--;
 				}
 				if (k == -1)
 					temp.base -= carry;
@@ -263,11 +274,21 @@ public:
 	}
 
 
-	// Multiplication de deux BigFloat. Multiplie b par chaque chiffre de a.
+	// Multiplication de deux BigFloat.
+	// Multiplie b par chaque chiffre de a, ajoute les résultats successifs à res.
+	// res doit être initialisé.
 	static void mult(BigFloat& a, BigFloat& b, BigFloat& res) {
-		for (int i = BIG_FLOAT_SIZE - 1; i >= 0; i++)
+		for (int i = BIG_FLOAT_SIZE - 1; i >= 0; i--)
 			multDigit(a, b, i, res);
 		multBase(a, b, res);
+	}
+
+	// Multiplication d’un BigFloat par un float.
+	// (utilisé pour les points de départ)
+	// (peut être amélioré en évitant de repasser par un BigFloat)
+	static void mult(float a, BigFloat& b, BigFloat& res) {
+		BigFloat aBig(a);
+		mult(aBig, b, res);
 	}
 
 };

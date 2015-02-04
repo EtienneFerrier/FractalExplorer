@@ -14,15 +14,19 @@ Elle fait l'interface entre la boucle d'evenements et les methodes de calcul et 
 #include "Parametres.hpp"
 #include "Mandel.hpp"
 #include "Affichage.hpp"
+#include "BigFloat.hpp"
+#include "BigMandel.hpp"
 
 using namespace std;
 
 
 int affichageGPU(Affichage* disp);
 
+BigFloat* bigZoomFactor;
+
 class Events{
 public:
-
+	//static BigFloat* bigZoomFactor;
 	// Zoom vers la cible du clic
 	static void clicGauche(SDL_Event& event, Affichage* disp)
 	{
@@ -36,6 +40,11 @@ public:
 		disp->center.y = y + (disp->center.y - y) * ZOOM_FACTOR;
 		
 		// MAJ de l'echelle
+		if (!bigZoomFactor)
+			bigZoomFactor = new BigFloat(disp->scale);
+		BigFloat temp(0);
+		BigFloat::mult(ZOOM_FACTOR, (*bigZoomFactor), temp);
+		bigZoomFactor = &temp;
 		disp->scale *= ZOOM_FACTOR;
 		
 		//Nouveau calcul de la fractale avec chrono
@@ -44,7 +53,13 @@ public:
 		if (GPU)
 			affichageGPU(disp);
 		else
-			Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
+			if (BIG_FLOAT_SIZE == 0)
+				Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
+			else {
+				BigFloat xStart(x);
+				BigFloat yStart(y);
+				BigMandel::computeMandel(disp->pixels, xStart, yStart, *bigZoomFactor);
+			}
 
 		disp->end = chrono::system_clock::now();
 		disp->duration = disp->end - disp->start;

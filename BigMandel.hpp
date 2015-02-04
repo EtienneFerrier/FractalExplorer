@@ -1,7 +1,5 @@
 /*
-Cette classe implémente le calcul de l'ensemble de Mandelbrot sur CPU.
-L'affichage n'est pas géré.
-Optimisation possible.
+Cette classe implémente le calcul de l'ensemble de Mandelbrot sur CPU sur des flottants arbitrairement grands.
 */
 
 #pragma once
@@ -9,6 +7,7 @@ Optimisation possible.
 #include <SDL2/SDL.h>
 #include "Complexe.hpp"
 #include <iostream>
+#include "BigFloat.hpp"
 
 // Fractale de Mandelbrot couleur 32bits version sombre
 #define MANDEL_32_DARK 3
@@ -22,7 +21,7 @@ Optimisation possible.
 
 
 
-class Mandelbrot {
+class BigMandel {
 
 public:
 
@@ -69,38 +68,51 @@ public:
 	}
 
 	// Itère la fonction génératrice sur un point
-	inline static int iteratePoint(Complexe& c, int& nbIterations) {
+	inline static int iteratePoint(BigFloat& xStart, BigFloat& yStart, int& nbIterations) {
 		int count = 0;
-		float x = 0;
-		float y = 0;
-		float xSquare = 0;
-		float ySquare = 0;
-		float temp;
-		while (count < nbIterations && (xSquare + ySquare)  < 4.)
+		BigFloat x;
+		BigFloat y;
+		BigFloat xx;
+		BigFloat yy;
+		BigFloat temp;
+		BigFloat xy;
+		while (count < nbIterations && temp.base < 4.)
 		{
-			//z.mult(z);
-			temp = x;
-			x = xSquare - ySquare;
-			y *= temp;
-			y += y;
-			x += c.x;
-			y += c.y;
+			
+			temp = BigFloat(x);
+			// x’ = xx - yy
+			BigFloat::negate(yy);
+			BigFloat::add(xx, yy, x);
+			// y’ = 2xy
+			BigFloat::mult(temp, y, xy);
+			BigFloat::add(xy, xy, y);
+			// x’ = x + xStart
+			BigFloat::add(xStart, x);
+			// y’ = y + yStart
+			BigFloat::add(yStart, y);
 			count++;
-			xSquare = x * x;
-			ySquare = y * y;
+			//xx = x * x
+			xx = BigFloat();
+			BigFloat::mult(x, x, xx);
+			//xx = y * y
+			yy = BigFloat();
+			BigFloat::mult(y, y, yy);
+			//temp = xx + yy
+			BigFloat::add(xx, yy, temp);
+			
 		}
 		return count;
 	}
 
 	// Calcule la couleur d'un point de l'ensemble de Mandelbrot en fonction d'une méthode de coloration et d'un nombre d'itérations.
-	static Uint32 computeColor(float x, float y, int methode, int nbIterations)
+	static Uint32 computeColor(BigFloat& xStart, BigFloat& yStart, int methode, int nbIterations)
 	{
 		int count;
-		Complexe c(x, y);
+		BigFloat temp;
 		switch (methode)
 		{
 		case MANDEL_32_DARK:
-			count = iteratePoint(c, nbIterations);
+			count = iteratePoint(xStart, yStart, nbIterations);
 			if (count == -1)
 				return couleur(0, 0, 0);
 			else return computeColor_32_DARK(nbIterations, count, 1);
@@ -112,16 +124,18 @@ public:
 
 	// Methode de test.
 	// Calcule l'ensemble de Mandelbrot sur le carre [-2, 2]x[-2, 2] avec une coloration N&B (10 itérations).
-	static void computeMandel(Uint32* result, Complexe& center, float scale)
+	static void computeMandel(Uint32* result, BigFloat& xStart, BigFloat& yStart, BigFloat& scale)
 	{
 		for (int i = 0; i < WIDTH; i++)
 			for (int j = 0; j < HEIGHT; j++)
 			{
-				result[j*WIDTH + i] = 
-					computeColor(center.x + scale*(-0.5f + (float)i / WIDTH),
-					(center.y + scale*(-0.5f + (float)j / HEIGHT))*HEIGHT / ((float)WIDTH),
-					MANDEL_32_DARK,
-					NB_ITERATIONS);
+				BigFloat x, y, temp;
+				BigFloat::mult((-0.5f + (float)i / WIDTH), scale, x);
+				BigFloat::mult((-0.5f + (float)j / HEIGHT), scale, temp);
+				BigFloat::mult((HEIGHT / ((float)WIDTH)), temp, y);
+
+				result[j*WIDTH + i] =
+					computeColor(x,	y, MANDEL_32_DARK, NB_ITERATIONS);
 			}
 
 	}
