@@ -29,27 +29,26 @@ int affichageGPU(Affichage* disp);
 
 //int main(int argc, char** argv)
 //{
-//	BigFloat a, b, c;
-//	a.base = 1;
-//	b.base = 1;
-//	a[0] = 1;
-//	b[0] = 1;
-//	a[1] = 1;
-//	b[1] = 1;
-//	a[2] = 1;
-//	b[2] = 1;
-//	a[3] = 1;
-//	b[3] = 1;
-//	a.display();
-//	cout << "a = " << a.base << ", " << a[0] << " " << a[1] << " " << a[2] << " " << a[3] << endl;
-//	BigFloat::negate(a);
-//	BigFloat::add(a, b, c);
+//	BigFloat a, b, c, d;
+//	a.base = -1;
+//	b.base = -1;
+//	a[0] = -1;
+//	b[0] = -1;
+//	a[1] = 0;
+//	b[1] = 0;
+//	a[2] = 0;
+//	b[2] = 0;
+//	a[3] = 0;
+//	b[3] = 0;
+//	BigFloat::mult(a, b, c);
+//	BigFloat::mult(a, a, d);
 //	a.display();
 //	b.display();
 //	c.display();
 //	cout << "a = " << a.base << ", " << a[0] << " " << a[1] << " " << a[2] << " " << a[3] << endl;
 //	cout << "b = " << b.base << ", " << b[0] << " " << b[1] << " " << b[2] << " " << b[3] << endl;
 //	cout << "c = " << c.base << ", " << c[0] << " " << c[1] << " " << c[2] << " " << c[3] << endl;
+//	cout << "d = " << d.base << ", " << d[0] << " " << d[1] << " " << d[2] << " " << d[3] << endl;
 //	while (1);
 //	return 0;
 //}

@@ -99,7 +99,7 @@ public:
 	// Addition inplace, ajoute a dans b.
 	static void add(BigFloat& a, BigFloat& b) {
 		bool carry = 0;
-		for (int i = BIG_FLOAT_SIZE - 1; i > 0; i--) {
+		for (int i = BIG_FLOAT_SIZE - 1; i >= 0; i--) {
 			b[i] += a[i] + carry;
 			carry = (a[i] + 1 == 0 && carry) || ((b[i]) < (a[i] + carry));
 		}
@@ -185,11 +185,12 @@ public:
 			ubase = (-b.base);
 			multDigDig(a, ubase, fakeLittle, fakeBig, carry);
 			little -= fakeLittle;
-			big -= (little > fakeLittle);
-			int32_t negCarry = (big == 0xFFFFFFFF); // Le seul cas d’overflow possible car on a retiré 0 ou 1
+			bool tempCarry = ((fakeLittle != 0) && (little >= (-fakeLittle)));
+			big -= tempCarry;
+			int32_t negCarry = (tempCarry && (big == 0xFFFFFFFF)); // Le seul cas d’overflow possible car on a retiré 0 ou 1
 
 			big -= fakeBig;
-			negCarry |= (big > fakeBig);
+			negCarry |= ((fakeLittle != 0) && (big >= (-fakeLittle)));
 			return -negCarry;
 		}
 	}
@@ -236,12 +237,15 @@ public:
 		else {
 			// Quand le résultat va dans la base
 			uint32_t fakeBase = 0; // Nécessaire de passer par un uint32_t
-			multDigBase(a[i], b, temp[0], fakeBase, carry); // La carry renvoyée vaut nécessairement 0 selon nos hypothèses
+			// La carry renvoyée vaut 0 ou -1 selon nos hypothèses
+			// En effet, le dépassement de la base nous amènerait hors de l’intervalle.
+			// Un -1 est possible puisqu’on utilise un uint, il faut alors rendre son signe à fakeBase.
+			int32_t fakeCarry = multDigBase(a[i], b, temp[0], fakeBase, carry);
 			if (b.base >= 0) {
 				temp.base += fakeBase;
 			}
-			else if (fakeBase != 0) {
-				temp.base += ((int32_t)fakeBase) - 0xFFFFFFFF; // Si b.base est négatif alors fakeBase vaut temp.base + 0xFFFFFFFF
+			else /*if (fakeBase != 0)*/ {
+				temp.base -= (-fakeBase); // Si b.base est négatif alors fakeBase vaut temp.base + 2^32
 			}
 		}
 	}

@@ -142,6 +142,8 @@ public:
 				BigFloat::mult((-0.5f + (float)i / WIDTH), scale, x);
 				BigFloat::mult((-0.5f + (float)j / HEIGHT), scale, temp);
 				BigFloat::mult((HEIGHT / ((float)WIDTH)), temp, y);
+				BigFloat::add(xStart, x);
+				BigFloat::add(yStart, y);
 
 				result[j*WIDTH + i] =
 					computeColor(x,	y, MANDEL_32_DARK, NB_ITERATIONS);
