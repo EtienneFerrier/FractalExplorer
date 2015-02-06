@@ -65,6 +65,12 @@ public:
 		delete[] decimals;
 	}
 
+	void reset() {
+		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
+			decimals[i] = 0;
+		base = 0;
+	}
+
 	void display() {
 
 		int ind = 0; //Permier decimal non nul

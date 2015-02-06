@@ -24,6 +24,21 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur CPU sur des fl
 class BigMandel {
 
 public:
+	static BigFloat *xStart;
+	static BigFloat *yStart;
+	static BigFloat *x;
+	static BigFloat *y;
+	static BigFloat *xx;
+	static BigFloat *yy;
+	static BigFloat *temp;
+
+	static void initializePointers() {
+		x = new BigFloat();
+		y = new BigFloat();
+		xx = new BigFloat();
+		yy = new BigFloat();
+		temp = new BigFloat();
+	}
 
 	// Convertit RGB en Uint32
 	static Uint32 couleur(int r, int g, int b)
@@ -68,17 +83,21 @@ public:
 	}
 
 	// Itère la fonction génératrice sur un point
-	inline static int iteratePoint(BigFloat& xStart, BigFloat& yStart, int& nbIterations) {
+	static int iteratePoint(/*BigFloat& xStart, BigFloat& yStart,*/ int& nbIterations) {
 		int count = 0;
-		BigFloat *x = new BigFloat();
-		BigFloat *y = new BigFloat();
-		BigFloat *xx = new BigFloat();
-		BigFloat *yy = new BigFloat();
-		BigFloat *temp = new BigFloat();
+		x->reset();
+		y->reset();
+		xx->reset();
+		yy->reset();
+		temp->reset();
+		//BigFloat *x = new BigFloat();
+		//BigFloat *y = new BigFloat();
+		//BigFloat *xx = new BigFloat();
+		//BigFloat *yy = new BigFloat();
+		//BigFloat *temp = new BigFloat();
 		while (count < nbIterations && temp->base < 4.)
 		{
-			delete temp;
-			temp = new BigFloat();
+			temp->reset();
 			BigFloat::mult(*x, *y, *temp);
 			// x’ = xx - yy
 			BigFloat::negate(*yy);
@@ -86,16 +105,14 @@ public:
 			// y’ = 2xy
 			BigFloat::add(*temp, *temp, *y);
 			// x’ = x + xStart
-			BigFloat::add(xStart, *x);
+			BigFloat::add(*xStart, *x);
 			// y’ = y + yStart
-			BigFloat::add(yStart, *y);
+			BigFloat::add(*yStart, *y);
 			//xx = x * x
-			delete xx;
-			xx = new BigFloat();
+			xx->reset();
 			BigFloat::mult(*x, *x, *xx);
 			//xx = y * y
-			delete yy;
-			yy = new BigFloat();
+			yy->reset();
 			BigFloat::mult(*y, *y, *yy);
 			//temp = xx + yy
 			BigFloat::add(*xx, *yy, *temp);
@@ -103,11 +120,11 @@ public:
 			count++;
 			
 		}
-		delete x;
-		delete y;
-		delete xx;
-		delete yy;
-		delete temp;
+		//delete x;
+		//delete y;
+		//delete xx;
+		//delete yy;
+		//delete temp;
 		return count;
 	}
 
@@ -143,14 +160,14 @@ public:
 	//}
 
 	// Calcule la couleur d'un point de l'ensemble de Mandelbrot en fonction d'une méthode de coloration et d'un nombre d'itérations.
-	static Uint32 computeColor(BigFloat& xStart, BigFloat& yStart, int methode, int nbIterations)
+	static Uint32 computeColor(/*BigFloat& xStart, BigFloat& yStart,*/ int methode, int nbIterations)
 	{
 		int count;
 		//BigFloat temp;
 		switch (methode)
 		{
 		case MANDEL_32_DARK:
-			count = iteratePoint(xStart, yStart, nbIterations);
+			count = iteratePoint(/*xStart, yStart,*/ nbIterations);
 			if (count == -1)
 				return couleur(0, 0, 0);
 			else return computeColor_32_DARK(nbIterations, count, 1);
@@ -162,24 +179,35 @@ public:
 
 	// Methode de test.
 	// Calcule l'ensemble de Mandelbrot sur le carre [-2, 2]x[-2, 2] avec une coloration N&B (10 itérations).
-	static void computeMandel(Uint32* result, BigFloat& xCenter, BigFloat& yCenter, BigFloat& scale)
+	static void computeMandel(Uint32* result, BigFloat& xCenter, BigFloat& yCenter, /*BigFloat& xStart, BigFloat& yStart,*/ BigFloat& scale)
 	{
 		for (int i = 0; i < WIDTH; i++)
 			for (int j = 0; j < HEIGHT; j++)
 			{
-				BigFloat x, y, temp;
-				BigFloat::mult((-0.5f + (float)i / WIDTH), scale, x);
-				BigFloat::mult((-0.5f + (float)j / HEIGHT), scale, temp);
-				BigFloat::mult((HEIGHT / ((float)WIDTH)), temp, y);
-				BigFloat::add(xCenter, x);
-				BigFloat::add(yCenter, y);
+				xStart->reset();
+				yStart->reset();
+				temp->reset();
+				BigFloat::mult((-0.5f + (float)i / WIDTH), scale, *xStart);
+				BigFloat::mult((-0.5f + (float)j / HEIGHT), scale, *temp);
+				BigFloat::mult((HEIGHT / ((float)WIDTH)), *temp, *yStart);
+				BigFloat::add(xCenter, *xStart);
+				BigFloat::add(yCenter, *yStart);
 
-				if (i == 30 && j == 25)
-					std::cout << "Breakpoint" << std::endl;
+				if (i == WIDTH/10 && j ==0)
+					std::cout << "Frame computed at 10%" << std::endl;
 				result[j*WIDTH + i] =
-					computeColor(x,	y, MANDEL_32_DARK, NB_ITERATIONS);
+					computeColor(/*xStart, yStart,*/ MANDEL_32_DARK, NB_ITERATIONS);
 			}
 
 	}
 
 };
+
+
+BigFloat* BigMandel::xStart = new BigFloat();
+BigFloat* BigMandel::yStart = new BigFloat();
+BigFloat* BigMandel::x = new BigFloat();
+BigFloat* BigMandel::y = new BigFloat();
+BigFloat* BigMandel::xx = new BigFloat();
+BigFloat* BigMandel::yy = new BigFloat();
+BigFloat* BigMandel::temp = new BigFloat();
