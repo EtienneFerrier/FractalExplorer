@@ -26,29 +26,34 @@ using namespace std;
 
 int affichageGPU(Affichage* disp);
 
+// TESTS:
+// (-1+0.9)^2 = 0.01
+// (-1+0.99)^2 = 0.0001
 
 //int main(int argc, char** argv)
 //{
 //	BigFloat a, b, c, d;
 //	a.base = -1;
 //	b.base = -1;
-//	a[0] = -1;
-//	b[0] = -1;
+//	a[0] = 0xffffffff;
+//	b[0] = 0xffffffff;
 //	a[1] = 0;
-//	b[1] = 0;
+//	b[1] = 0xffffffff;
 //	a[2] = 0;
 //	b[2] = 0;
 //	a[3] = 0;
 //	b[3] = 0;
-//	BigFloat::mult(a, b, c);
-//	BigFloat::mult(a, a, d);
+//	BigFloat::mult(a, a, c);
+//	BigFloat::mult(b, b, d);
 //	a.display();
 //	b.display();
 //	c.display();
 //	cout << "a = " << a.base << ", " << a[0] << " " << a[1] << " " << a[2] << " " << a[3] << endl;
 //	cout << "b = " << b.base << ", " << b[0] << " " << b[1] << " " << b[2] << " " << b[3] << endl;
 //	cout << "c = " << c.base << ", " << c[0] << " " << c[1] << " " << c[2] << " " << c[3] << endl;
-//	cout << "d = " << d.base << ", " << d[0] << " " << d[1] << " " << d[2] << " " << d[3] << endl;
+//	
+//
+//
 //	while (1);
 //	return 0;
 //}
@@ -60,10 +65,7 @@ int main(int argc, char** argv)
 		return 0;
 
 	/* Calcul de la fractale */ 
-	//Mandelbrot::computeMandel(display.pixels, WIDTH, HEIGHT, display.center, display.scale);
-
-	affichageGPU(&display);
-	
+	Events::initialDisplay(&display);
 
 	/* Affichage de la fractale */
 	//display.dessin();

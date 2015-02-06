@@ -183,15 +183,32 @@ public:
 			uint32_t fakeLittle = 0;
 			uint32_t fakeBig = 0;
 			ubase = (-b.base);
-			multDigDig(a, ubase, fakeLittle, fakeBig, carry);
+			// La carry doit être proise en compte manuellement car sinon elle serait retranchée au lieu d'être ajoutée
+			multDigDig(a, ubase, fakeLittle, fakeBig, 0);
 			little -= fakeLittle;
 			bool tempCarry = ((fakeLittle != 0) && (little >= (-fakeLittle)));
 			big -= tempCarry;
 			int32_t negCarry = (tempCarry && (big == 0xFFFFFFFF)); // Le seul cas d’overflow possible car on a retiré 0 ou 1
 
 			big -= fakeBig;
-			negCarry |= ((fakeLittle != 0) && (big >= (-fakeLittle)));
-			return -negCarry;
+			negCarry |= ((fakeBig != 0) && (big >= (-fakeBig)));
+			// Ajout de la carry issue du calcul précédent
+			big += carry;
+			return (carry && (big == 0)) - negCarry;
+		}
+	}
+
+	static void multOnBase(uint32_t& a, BigFloat& b, BigFloat& temp, bool carry) {
+		uint32_t fakeBase = 0; // Nécessaire de passer par un uint32_t
+		// La carry renvoyée vaut 0 ou -1 selon nos hypothèses
+		// En effet, le dépassement de la base nous amènerait hors de l’intervalle.
+		// Un -1 est possible puisqu’on utilise un uint, il faut alors rendre son signe à fakeBase.
+		multDigBase(a, b, temp[0], fakeBase, carry);
+		if (b.base >= 0) {
+			temp.base += fakeBase;
+		}
+		else /*if (fakeBase != 0)*/ {
+			temp.base -= (-fakeBase); // Si b.base est négatif alors fakeBase vaut temp.base + 2^32
 		}
 	}
 
@@ -236,19 +253,11 @@ public:
 		}
 		else {
 			// Quand le résultat va dans la base
-			uint32_t fakeBase = 0; // Nécessaire de passer par un uint32_t
-			// La carry renvoyée vaut 0 ou -1 selon nos hypothèses
-			// En effet, le dépassement de la base nous amènerait hors de l’intervalle.
-			// Un -1 est possible puisqu’on utilise un uint, il faut alors rendre son signe à fakeBase.
-			int32_t fakeCarry = multDigBase(a[i], b, temp[0], fakeBase, carry);
-			if (b.base >= 0) {
-				temp.base += fakeBase;
-			}
-			else /*if (fakeBase != 0)*/ {
-				temp.base -= (-fakeBase); // Si b.base est négatif alors fakeBase vaut temp.base + 2^32
-			}
+			multOnBase(a[i], b, temp, carry);
 		}
 	}
+
+
 
 	static void multBase(BigFloat& a, BigFloat& b, BigFloat& temp) {
 		if (a.base == 0)
@@ -277,8 +286,7 @@ public:
 			}
 		}
 		// Multiplication de la base avec le premier chiffre
-		uint32_t fakeBase = 0;
-		multDigBase(b[0], a, temp[0], fakeBase, 0); // Il ne peut pas y avoir de retenue dans l’espace que l’on considère
+		multOnBase(b[0], a, temp, 0);
 		// Multiplication base base
 		temp.base += a.base * b.base;
 	}

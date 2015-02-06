@@ -22,10 +22,37 @@ using namespace std;
 
 int affichageGPU(Affichage* disp);
 
-BigFloat* bigZoomFactor;
+BigFloat* bigScale;
 
 class Events{
 public:
+
+	//
+	static void initialDisplay(Affichage* disp) {
+		bigScale = new BigFloat(disp->scale);
+
+		//Nouveau calcul de la fractale avec chrono
+		disp->start = chrono::system_clock::now();
+
+		if (GPU)
+			affichageGPU(disp);
+		else
+			if (BIG_FLOAT_SIZE == 0)
+				Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
+			else {
+				BigFloat xCenter(0);
+				BigFloat yCenter(0);
+				BigMandel::computeMandel(disp->pixels, xCenter, yCenter, *bigScale);
+			}
+
+			disp->end = chrono::system_clock::now();
+			disp->duration = disp->end - disp->start;
+			cout << "Frame computing time : " << disp->duration.count() << endl;
+
+			// Affichage de la fractale
+			disp->dessin();
+	}
+
 	//static BigFloat* bigZoomFactor;
 	// Zoom vers la cible du clic
 	static void clicGauche(SDL_Event& event, Affichage* disp)
@@ -40,12 +67,8 @@ public:
 		disp->center.y = y + (disp->center.y - y) * ZOOM_FACTOR;
 		
 		// MAJ de l'echelle
-		if (!bigZoomFactor)
-			bigZoomFactor = new BigFloat(disp->scale);
-		BigFloat temp;
-		BigFloat::mult(ZOOM_FACTOR, (*bigZoomFactor), temp);
-		bigZoomFactor = &temp;
 		disp->scale *= ZOOM_FACTOR;
+		bigScale = new BigFloat(disp->scale);
 		
 		//Nouveau calcul de la fractale avec chrono
 		disp->start = chrono::system_clock::now();
@@ -56,9 +79,9 @@ public:
 			if (BIG_FLOAT_SIZE == 0)
 				Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
 			else {
-				BigFloat xStart(x);
-				BigFloat yStart(y);
-				BigMandel::computeMandel(disp->pixels, xStart, yStart, *bigZoomFactor);
+				BigFloat xCenter(disp->center.x);
+				BigFloat yCenter(disp->center.y);
+				BigMandel::computeMandel(disp->pixels, xCenter, yCenter, *bigScale);
 			}
 
 		disp->end = chrono::system_clock::now();
