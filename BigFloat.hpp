@@ -54,6 +54,44 @@ public:
 			decimals[i] = 0;
 	}
 
+	// Prends des paquets de quatre chiffres
+	BigFloat(int32_t base, float b, float c, float d, float e, float f, float g) {
+		decimals = new uint32_t[BIG_FLOAT_SIZE];
+		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
+			decimals[i] = 0;
+		this->base = 0;
+		this->base = base;
+		BigFloat bBig(b);
+		mult(1e-4f, bBig, *this);
+		BigFloat cBig(c);
+		mult(1e-8f, cBig, *this);
+		BigFloat dBig(d);
+		mult(1e-12f, dBig, *this);
+		BigFloat eBig(e);
+		mult(1e-16f, eBig, *this);
+		BigFloat fBig(f);
+		mult(1e-20f, fBig, *this);
+		BigFloat gBig(g);
+		mult(1e-24f, gBig, *this);
+	}
+
+	// Directement des chiffres
+	BigFloat(int32_t base, uint32_t b, uint32_t c, uint32_t d, uint32_t e) {
+		decimals = new uint32_t[BIG_FLOAT_SIZE];
+		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
+			decimals[i] = 0;
+		if (b != 0)
+			decimals[0] = b;
+		if (c != 0)
+			decimals[1] = c;
+		if (d != 0)
+			decimals[2] = d;
+		if (e != 0)
+			decimals[3] = e;
+		this->base = base;
+	}
+
+
 	BigFloat(BigFloat& a) {
 		decimals = new uint32_t[BIG_FLOAT_SIZE];
 		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
@@ -185,7 +223,7 @@ public:
 			carry = multDigDig(a, ubase, little, big, carry);
 			return carry;
 		}
-		else { // Cas très chiant, il faut considérer une retenue négative
+		else { // Cas chiant, il faut considérer une retenue négative
 			uint32_t fakeLittle = 0;
 			uint32_t fakeBig = 0;
 			ubase = (-b.base);
@@ -213,7 +251,7 @@ public:
 		if (b.base >= 0) {
 			temp.base += fakeBase;
 		}
-		else /*if (fakeBase != 0)*/ {
+		else  {
 			temp.base -= (-fakeBase); // Si b.base est négatif alors fakeBase vaut temp.base + 2^32
 		}
 	}

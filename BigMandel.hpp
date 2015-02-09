@@ -90,11 +90,6 @@ public:
 		xx->reset();
 		yy->reset();
 		temp->reset();
-		//BigFloat *x = new BigFloat();
-		//BigFloat *y = new BigFloat();
-		//BigFloat *xx = new BigFloat();
-		//BigFloat *yy = new BigFloat();
-		//BigFloat *temp = new BigFloat();
 		while (count < nbIterations && temp->base < 4.)
 		{
 			temp->reset();
@@ -120,50 +115,14 @@ public:
 			count++;
 			
 		}
-		//delete x;
-		//delete y;
-		//delete xx;
-		//delete yy;
-		//delete temp;
 		return count;
 	}
 
-	//inline static int iteratePoint(BigFloat& xStart, BigFloat& yStart, int& nbIterations) {
-	//	int count = 0;
-	//	BigFloat x, y, xx, yy, temp;
-	//	while (count < nbIterations && temp.base < 4.)
-	//	{
-	//		temp = BigFloat();
-	//		BigFloat::mult(x, y, temp);
-	//		// x’ = xx - yy
-	//		BigFloat::negate(yy);
-	//		BigFloat::add(xx, yy, x);
-	//		// y’ = 2xy
-	//		BigFloat::add(temp, temp, y);
-	//		// x’ = x + xStart
-	//		BigFloat::add(xStart, x);
-	//		// y’ = y + yStart
-	//		BigFloat::add(yStart, y);
-	//		//xx = x  x
-	//		xx = BigFloat();
-	//		BigFloat::mult(x, x, xx);
-	//		//xx = y  y
-	//		yy = BigFloat();
-	//		BigFloat::mult(y, y, yy);
-	//		//temp = xx + yy
-	//		BigFloat::add(xx, yy, temp);
-
-	//		count++;
-
-	//	}
-	//	return count;
-	//}
 
 	// Calcule la couleur d'un point de l'ensemble de Mandelbrot en fonction d'une méthode de coloration et d'un nombre d'itérations.
 	static Uint32 computeColor(/*BigFloat& xStart, BigFloat& yStart,*/ int methode, int nbIterations)
 	{
 		int count;
-		//BigFloat temp;
 		switch (methode)
 		{
 		case MANDEL_32_DARK:
@@ -188,12 +147,11 @@ public:
 				yStart->reset();
 				temp->reset();
 				BigFloat::mult((-0.5f + (float)i / WIDTH), scale, *xStart);
-				BigFloat::mult((-0.5f + (float)j / HEIGHT), scale, *temp);
-				BigFloat::mult((HEIGHT / ((float)WIDTH)), *temp, *yStart);
+				BigFloat::mult((-0.5f + (float)j / HEIGHT)*(HEIGHT / ((float)WIDTH)), scale, *yStart);
+				//BigFloat::mult(), *temp, *yStart);
 				BigFloat::add(xCenter, *xStart);
 				BigFloat::add(yCenter, *yStart);
-
-				if (i == WIDTH/10 && j ==0)
+				if (i == WIDTH/10 && j == 0)
 					std::cout << "Frame computed at 10%" << std::endl;
 				result[j*WIDTH + i] =
 					computeColor(/*xStart, yStart,*/ MANDEL_32_DARK, NB_ITERATIONS);
