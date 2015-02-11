@@ -167,6 +167,12 @@ public:
 
 
 	// Fonction servant à multiplier deux chiffres
+	// On évite les integer overflow en utilisant la technique suivante :
+	// a = ah.2 ^ 16 + al; b = bh.2 ^ 16 + bl
+	// mid = (ahbl + albh) mod 2 ^ 32
+	// carry = ((ahbl + albh) - mid).2 ^ (-32)
+	// ab = (ahbh).2 ^ 32 + mid.2 ^ 16 + (albl)
+	//	  = (ahbh + carry.2 ^ 16 + midh).2 ^ 32 + (midl.2 ^ 16 + albl)
 	static inline bool multDigDig(uint32_t& a, uint32_t& b, uint32_t& little, uint32_t& big, bool carry) {
 		uint32_t mask = 0xFFFF;
 		uint32_t ah, al, bh, bl, midh, midl, ahbh, ahbl, albh, albl, temp;
@@ -256,16 +262,8 @@ public:
 		}
 	}
 
-	/*  Multiplication de a par un chiffre de b, résultat ajouté à temp,
-	 *  temp doit être initialisé au préalable.
-	 *  On évite les integer overflow en utilisant la technique suivante :
-	 *	a = ah.2^16 + al ; b = bh.2^16 + bl
-	 *  mid = (ahbl + albh) mod 2^32
-	 *  carry = ((ahbl + albh) - mid).2^(-32)
-	 *	ab = (ahbh).2^32 + mid.2^16 + (albl)
-	 *     = (ahbh + carry.2^16 + midh).2^32 + (midl.2^16 + albl)
-	 *
-	 */
+	// Multiplication de a par un chiffre de b, résultat ajouté à temp,
+	// temp doit être initialisé au préalable.
 	static void multDigit(BigFloat& a, BigFloat& b, int i, BigFloat& temp) {
 		bool carry;
 
