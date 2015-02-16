@@ -23,7 +23,7 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU.
         return retcode; \
 			    }
 
-// C = A + B
+// C = A + B (unsigned)
 __device__ void addUnsigned(bool posA, uint32_t* decA, bool posB, uint32_t* decB, bool* posC, uint32_t* decC)
 {
 	const unsigned int k = blockIdx.z*blockDim.z + threadIdx.z;
@@ -39,21 +39,67 @@ __device__ void addUnsigned(bool posA, uint32_t* decA, bool posB, uint32_t* decB
 	}
 	__syncthreads();
 }
+
+// C = A + B (signed)
 __device__ void add(bool posA, uint32_t* decA, bool posB, uint32_t* decB, bool* posC, uint32_t* decC)
 {
 	const unsigned int k = blockIdx.z*blockDim.z + threadIdx.z;
 	bool carry;
 
-	decC[k] = decA[k] + decB[k];
-	carry = decC[k] < decA[k];
-	__syncthreads(); // Si souligné en rouge, n'est pas nécessairement une erreur
-
-	if (k > 0)
+	// Cas simple (addition unsigned)
+	if (posA == posB)
 	{
-		decC[k - 1] += carry;
+		decC[k] = decA[k] + decB[k]; // Addition
+		carry = decC[k] < decA[k]; // Calcul des retenues
+		__syncthreads();
+
+		if (k > 0) 
+		{
+			decC[k - 1] += carry; // Propagation des retenues (une seule fois)
+		}
+		else
+		{
+			*posC = posA; // Calcul du signe du resultat
+		}
+		__syncthreads();
 	}
-	__syncthreads();
+	else // Cas complique (soustraction)
+	{
+		decC[k] = decA[k] - decB[k]; // Soustraction
+		carry = decC[k] > decA[k]; // Calcul des retenues 
+		__syncthreads();
+
+		if (k > 0)
+		{
+			decC[k-1] -= carry; // Propagation des retenues (une seule fois)
+		}
+		__syncthreads();
+
+		if(k == 0)
+		{
+			*posC = (carry || decC[0] == -1) ^ posA; // ATTENTION : mais un indicateur de |A| < |B| (valeur absolue)
+		}
+		__syncthreads();
+
+		if (*posC ^ posA) // Dans ce cas, |B| > |A|. On doit donc recalculer la soustraction
+		{
+			decC[k] = decB[k] - decA[k];
+			carry = decC[k] > decB[k];
+			__syncthreads();
+
+			if (k > 0)
+			{
+				decC[k - 1] -= carry;
+			}
+			else
+			{
+				*posC = posB; // Signe du resultat
+			}
+			__syncthreads();
+		}
+	}
 }
+
 
 __global__ void testKernel(bool posA, uint32_t* decA, bool posB, uint32_t* decB, bool* posC, uint32_t* decC)
 {
@@ -65,8 +111,7 @@ __global__ void testKernel(bool posA, uint32_t* decA, bool posB, uint32_t* decB,
 
 	if (i == 0)
 	{
-		addUnsigned(posA, decA, posB, decB, posC, decC);
-		*posC = true;
+		add(posA, decA, posB, decB, posC, decC);
 	}
 	
 }
@@ -94,10 +139,14 @@ int testBigMandelGPU()
 	bool h_posA, h_posB, h_posC;
 
 	h_decA[0] = 1;
-	h_decB[0] = 2;
-	h_decA[1] = 45;
-	h_decB[1] = 54;
+	h_decA[1] = -1;
+	h_decA[2] = -1;
+	h_decA[3] = 0;
 	//h_decA[1] = 4294967295;
+	h_decB[0] = 1;
+	h_decB[1] = 0;
+	h_decB[2] = 1;
+	h_decB[3] = 0;
 	//h_decB[1] = 4294967295;
 	h_posA = true;
 	h_posB = true;
@@ -117,8 +166,6 @@ int testBigMandelGPU()
 	ASSERT(cudaSuccess == cudaDeviceSynchronize(), "Kernel synchronization failed", -1);
 
 
-
-
 	ASSERT(cudaSuccess == cudaMemcpy(h_decC, d_decC, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decC from device to host failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(&h_posC, d_posC, sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posC from device to host failed", -1);
 
@@ -132,7 +179,7 @@ int testBigMandelGPU()
 	ASSERT(cudaSuccess == cudaFree(d_posC), "Device deallocation failed", -1);
 
 
-	cout << "C = " << h_posC << "    " << h_decC[0] << " " << h_decC[1] << endl;
+	cout << "C = " << (h_posC ? "+" : "-") << "  " << h_decC[0] << " " << h_decC[1] << " " << h_decC[2] << " " << h_decC[3] << endl;
 
 	return EXIT_SUCCESS;
 }
