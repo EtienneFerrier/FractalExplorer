@@ -24,6 +24,21 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU.
 			    }
 
 // C = A + B
+__device__ void addUnsigned(bool posA, uint32_t* decA, bool posB, uint32_t* decB, bool* posC, uint32_t* decC)
+{
+	const unsigned int k = blockIdx.z*blockDim.z + threadIdx.z;
+	bool carry;
+
+	decC[k] = decA[k] + decB[k];
+	carry = decC[k] < decA[k];
+	__syncthreads(); // Si souligné en rouge, n'est pas nécessairement une erreur
+
+	if (k > 0)
+	{
+		decC[k - 1] += carry;
+	}
+	__syncthreads();
+}
 __device__ void add(bool posA, uint32_t* decA, bool posB, uint32_t* decB, bool* posC, uint32_t* decC)
 {
 	const unsigned int k = blockIdx.z*blockDim.z + threadIdx.z;
@@ -37,6 +52,7 @@ __device__ void add(bool posA, uint32_t* decA, bool posB, uint32_t* decB, bool* 
 	{
 		decC[k - 1] += carry;
 	}
+	__syncthreads();
 }
 
 __global__ void testKernel(bool posA, uint32_t* decA, bool posB, uint32_t* decB, bool* posC, uint32_t* decC)
@@ -49,7 +65,7 @@ __global__ void testKernel(bool posA, uint32_t* decA, bool posB, uint32_t* decB,
 
 	if (i == 0)
 	{
-		add(posA, decA, posB, decB, posC, decC);
+		addUnsigned(posA, decA, posB, decB, posC, decC);
 		*posC = true;
 	}
 	
@@ -79,10 +95,10 @@ int testBigMandelGPU()
 
 	h_decA[0] = 1;
 	h_decB[0] = 2;
-	//h_decA[1] = 45;
-	//h_decB[1] = 54;
-	h_decA[1] = 4294967295;
-	h_decB[1] = 4294967295;
+	h_decA[1] = 45;
+	h_decB[1] = 54;
+	//h_decA[1] = 4294967295;
+	//h_decB[1] = 4294967295;
 	h_posA = true;
 	h_posB = true;
 
