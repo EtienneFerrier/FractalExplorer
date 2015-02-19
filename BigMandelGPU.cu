@@ -13,8 +13,7 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU.
 
 #include "Parametres.hpp"
 #include "Affichage.hpp"
-
-
+#include "BigFloat2.hpp"
 
 #define ASSERT(x, msg, retcode) \
     if (!(x)) \
@@ -22,6 +21,27 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU.
         cout << msg << " " << __FILE__ << ":" << __LINE__ << endl; \
         return retcode; \
 			    }
+
+// charge 1/WIDTH en BigFloat pour WIDTH = 100
+// Pourrait etre une macro preproc
+// A changer des que l'on change la taille de la fenetre
+__device__ void getStepX(bool* pos, uint32_t* dec)
+{
+	*pos = true;
+	dec[0] = 0;
+#if BIG_FLOAT_SIZE > 1
+	dec[1] = 42949673;
+#endif
+#if BIG_FLOAT_SIZE > 2
+	dec[2] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 3
+	dec[3] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 4
+	dec[4] = 0;
+#endif
+}
 
 // C = A + B
 __device__ void add(/*reg*/bool posA, /*shared*/uint32_t* decA, /*reg*/bool posB, /*shared*/uint32_t* decB, /*shared*/bool* posC, /*shared*/uint32_t* decC)
@@ -252,6 +272,7 @@ __device__ void multIP(/*shared*/bool* posA, /*shared*/uint32_t* decA, /*shared*
 	__syncthreads();
 }
 
+
 __global__ void testKernel(bool* posA, uint32_t* decA, bool* posB, uint32_t* decB, bool* posC, uint32_t* decC)
 {
 	//const unsigned int ti = threadIdx.x;
@@ -310,12 +331,12 @@ int testBigMandelGPU()
 
 	h_decA[0] = 2;
 	h_decA[1] = 6;
-	h_decA[2] = 0;
+	h_decA[2] = 4;
 	h_decA[3] = 0;
 	//h_decA[1] = 4294967295;
 	h_decB[0] = 2;
-	h_decB[1] = 9;
-	h_decB[2] = 0;
+	h_decB[1] = 7;
+	h_decB[2] = 3;
 	h_decB[3] = 0;
 	//h_decB[1] = 4294967295;
 	h_posA = false;
@@ -364,6 +385,8 @@ int testBigMandelGPU()
 	cout << "B = " << (h_posB ? "+" : "-") << "  " << h_decB[0] << " " << h_decB[1] << " " << h_decB[2] << " " << h_decB[3] << endl << endl;
 	cout << "C = " << (h_posC ? "+" : "-") << "  " << h_decC[0] << " " << h_decC[1] << " " << h_decC[2] << " " << h_decC[3] << endl;
 	
+	BigFloat2 xStep(1. / (double)WIDTH);
+	cout << xStep.decimals[0] << "   " << xStep.decimals[1] << "   " << xStep.decimals[2] << "   " << xStep.decimals[3] << endl;
 
 	return EXIT_SUCCESS;
 }
