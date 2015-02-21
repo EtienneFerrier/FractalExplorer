@@ -13,3 +13,5 @@ Il est normalement inclus dans tous les fichiers du projet
 #define GPU 0					// 1 if using GPU, 0 if using CPU
 #define BIG_FLOAT_SIZE 4		// Le nombre de bits sur lesquels on code un grand flottant, 0 pour utiliser les floats normaux
 #define INTERACTIVE 1			// Booléen décidant si le zoom est fixé ou interactif
+#define BLOCK_X 32				// Taille des block CUDA en X
+#define BLOCK_Y 1				// Taille des block CUDA en Y
