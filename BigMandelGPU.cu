@@ -21,10 +21,10 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU.
 
 #define ASSERT(x, msg, retcode) \
     if (!(x)) \
-			    { \
+				    { \
         cout << msg << " " << __FILE__ << ":" << __LINE__ << endl; \
         return retcode; \
-			    }
+				    }
 
 // Affiche en float le BigFloat en utilisant les 2 premieres decimales uniquement
 void display2dec(bool pos, uint32_t* dec)
@@ -187,7 +187,7 @@ __device__ void negate(bool* pos)
 
 	if (k == 0)
 		*pos = !*pos;
-	
+
 	__syncthreads();
 }
 
@@ -284,7 +284,7 @@ __device__ void addIP(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
 		}
 		__syncthreads();
 
-		if(*posA == posB) // Dans ce cas, |B| > |A|. On doit donc recalculer la soustraction
+		if (*posA == posB) // Dans ce cas, |B| > |A|. On doit donc recalculer la soustraction
 		{
 			tmp = -tmp; // = decB[k] - decA[k]
 			carry = !(tmp == 0 || carry); // = tmp > decB[k]
@@ -292,7 +292,7 @@ __device__ void addIP(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
 
 		decA[k] = tmp;
 		__syncthreads();
-		
+
 		if (k > 0)
 			decA[k - 1] -= carry;
 		__syncthreads();
@@ -301,10 +301,10 @@ __device__ void addIP(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
 
 //Fonction servant à multiplier deux chiffres
 /*	a (reg) et b (reg) sont les copies des decimaux a (shared) et b (shared)
-	tmpLittle (reg) est un tas qui contient la somme partielle a ajouter plus tard a little (shared) 
-	tmpBig (reg) est un tas qui contient la somme partielle a ajouter plus tard a big (shared) 
-	carry (reg) est un tas qui contient la somme des retenues a ajouter plus tard au decimal avant big (shared)
-	Chaque appel demande une lecture SHARED -> REG de 2 cases au préalable. Possibilité d'optimiser.*/
+tmpLittle (reg) est un tas qui contient la somme partielle a ajouter plus tard a little (shared)
+tmpBig (reg) est un tas qui contient la somme partielle a ajouter plus tard a big (shared)
+carry (reg) est un tas qui contient la somme des retenues a ajouter plus tard au decimal avant big (shared)
+Chaque appel demande une lecture SHARED -> REG de 2 cases au préalable. Possibilité d'optimiser.*/
 __device__ void multDigDig(uint32_t a, uint32_t b, uint8_t* carry, uint32_t* tmpBig, uint32_t* tmpLittle) {
 
 	uint32_t mask = 0xFFFF;
@@ -473,7 +473,7 @@ __device__ void copyBig(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
 
 // X = X*X - Y*Y
 // Y = 2*X*Y
-__device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY,bool* posTmp, uint32_t* decTmp, bool* posSq, uint32_t* decSq)
+__device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp, bool* posSq, uint32_t* decSq)
 {
 	// tmp = 2*X*Y
 	copyBig(posTmp, decTmp, *posX, decX);	// tmp = X
@@ -487,7 +487,7 @@ __device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* 
 	multIP(posSq, decSq, *posY, decY);		// Sq *= Y
 	negate(posSq);							// neg(Sq)
 	addIP(posX, decX, *posSq, decSq);		// X += Sq
-	
+
 	// Y = tmp
 	copyBig(posY, decY, *posTmp, decTmp);
 
@@ -530,7 +530,7 @@ __global__ void testKernel(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 	__shared__ uint32_t decSq[BLOCK_X * BIG_FLOAT_SIZE];
 	__shared__ bool posTmp[BLOCK_X];
 	__shared__ bool posSq[BLOCK_X];*/
-	
+
 	// Test iterate
 	loadStart(i, *posC, decC, decS, posX + i, decX + i*BIG_FLOAT_SIZE);
 	loadStart(j, *posC, decC, decS, posY + i, decY + i*BIG_FLOAT_SIZE); // Changer cet appel quand intégration de la dimension j
@@ -583,7 +583,7 @@ __global__ void testKernel(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 	//	// TEST addition
 	//	//add(*posA, decA, *posB, decB, posC, decC);
 	//}
-	
+
 }
 
 // Fonction de communication avec le GPU, lance les thread et gère les échanges mémoire
@@ -610,7 +610,7 @@ int testBigMandelGPU()
 	uint32_t h_decX[BLOCK_X * BIG_FLOAT_SIZE];
 	uint32_t h_decY[BLOCK_X * BIG_FLOAT_SIZE];
 	uint32_t h_decC[BIG_FLOAT_SIZE];
-	uint32_t h_decS[BIG_FLOAT_SIZE]; 
+	uint32_t h_decS[BIG_FLOAT_SIZE];
 	bool h_posX[BLOCK_X];
 	bool h_posY[BLOCK_X];
 	bool h_posC;
@@ -635,7 +635,7 @@ int testBigMandelGPU()
 	h_decC[3] = 0;
 	h_posC = true;
 
-	h_decS[0] = 1; 
+	h_decS[0] = 1;
 	h_decS[1] = 0;
 	h_decS[2] = 0;
 	h_decS[3] = 0;
@@ -673,7 +673,7 @@ int testBigMandelGPU()
 	ASSERT(cudaSuccess == cudaFree(d_decX), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_decY), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_decC), "Device deallocation failed", -1);
-	ASSERT(cudaSuccess == cudaFree(d_decS), "Device deallocation failed", -1); 
+	ASSERT(cudaSuccess == cudaFree(d_decS), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_posX), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_posY), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_posC), "Device deallocation failed", -1);
@@ -688,7 +688,7 @@ int testBigMandelGPU()
 	cout << "B = " << (h_posB ? "+" : "-") << "  " << h_decB[0] << " " << h_decB[1] << " " << h_decB[2] << " " << h_decB[3] << endl << endl;
 	cout << "C = " << (h_posC ? "+" : "-") << "  " << h_decC[0] << " " << h_decC[1] << " " << h_decC[2] << " " << h_decC[3] << endl;
 
-	cout << " A =  " << endl; 
+	cout << " A =  " << endl;
 	display2dec(h_posA, h_decA);*/
 
 	return EXIT_SUCCESS;
