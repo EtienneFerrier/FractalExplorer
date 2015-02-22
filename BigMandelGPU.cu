@@ -493,6 +493,41 @@ __device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* 
 
 }
 
+// Realise le test X^2 + Y^2 < 4 en place.
+// Ne modifie pas les valeurs de X et Y.
+__device__ bool testSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY)
+{
+	const unsigned int k = blockIdx.z*blockDim.z + threadIdx.z;
+
+	uint32_t recDecX = decX[k];
+	uint32_t recDecY = decY[k];
+	bool recPosX = *posX;
+	bool recPosY = *posY;
+	
+	bool res;
+
+	multIP(posX, decX, *posX, decX); // X *= X
+	multIP(posY, decY, *posY, decY); // Y *= Y
+	addIP(posX, decX, *posY, decY); // X^2 += Y^2
+
+	if (decX[0] < 4)
+		res = true;
+	else
+		res = false;
+
+	__syncthreads();
+
+	*posX = recPosX;
+	*posY = recPosY;
+
+	decX[k] = recDecX;
+	decY[k] = recDecY;
+
+	__syncthreads();
+
+	return res;
+}
+
 __device__ int iterateBelette(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY)
 {
 	__shared__ uint32_t decTmp[BLOCK_X * BIG_FLOAT_SIZE];
@@ -534,7 +569,10 @@ __global__ void testKernel(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 	// Test iterate
 	loadStart(i, *posC, decC, decS, posX + i, decX + i*BIG_FLOAT_SIZE);
 	loadStart(j, *posC, decC, decS, posY + i, decY + i*BIG_FLOAT_SIZE); // Changer cet appel quand intégration de la dimension j
-	iterateBelette(posX, decX, posY, decY);
+	//iterateBelette(posX, decX, posY, decY);
+
+	// Test testSquare
+	//posY[i] = testSquare(posX + i, decX + i*BIG_FLOAT_SIZE, posY + i, decY + i*BIG_FLOAT_SIZE);
 
 	// Test loadStart multiple
 	//loadStart(i, *posC, decC, decS, posX + i, decX + i*BIG_FLOAT_SIZE);
@@ -616,38 +654,21 @@ int testBigMandelGPU()
 	bool h_posC;
 	bool h_posS;
 
-	/*h_decA[0] = 1;
-	h_decA[1] = 2;
-	h_decA[2] = 0;
-	h_decA[3] = 0;
-
-	h_decB[0] = 1;
-	h_decB[1] = 0;
-	h_decB[2] = 0;
-	h_decB[3] = 0;
-
-	h_posA = true;
-	h_posB = true;*/
-
 	h_decC[0] = 0;
 	h_decC[1] = 0;
 	h_decC[2] = 0;
 	h_decC[3] = 0;
 	h_posC = true;
 
-	h_decS[0] = 1;
+	h_decS[0] = 3;
 	h_decS[1] = 0;
 	h_decS[2] = 0;
 	h_decS[3] = 0;
 	h_posS = true;
 
-	/*ASSERT(cudaSuccess == cudaMemcpy(d_decA, h_decA, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decA from host to device failed", -1);
-	ASSERT(cudaSuccess == cudaMemcpy(d_decB, h_decB, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decB from host to device failed", -1);*/
 	ASSERT(cudaSuccess == cudaMemcpy(d_decC, h_decC, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decC from host to device failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(d_posC, &h_posC, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posC from host to device failed", -1); 
 	ASSERT(cudaSuccess == cudaMemcpy(d_decS, h_decS, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decS from host to device failed", -1);
-	/*ASSERT(cudaSuccess == cudaMemcpy(d_posA, &h_posA, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posA from host to device failed", -1);
-	ASSERT(cudaSuccess == cudaMemcpy(d_posB, &h_posB, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posB from host to device failed", -1);*/
-	ASSERT(cudaSuccess == cudaMemcpy(d_posC, &h_posC, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posC from host to device failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(d_posS, &h_posS, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posS from host to device failed", -1);
 
 	dim3 cudaBlockSize(BLOCK_X, 1, BIG_FLOAT_SIZE); // ATTENTION, 1024 threads max par block
@@ -657,16 +678,12 @@ int testBigMandelGPU()
 	ASSERT(cudaSuccess == cudaGetLastError(), "Kernel launch failed", -1);
 	ASSERT(cudaSuccess == cudaDeviceSynchronize(), "Kernel synchronization failed", -1);
 
-
 	ASSERT(cudaSuccess == cudaMemcpy(h_decC, d_decC, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decC from device to host failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(&h_posC, d_posC, sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posC from device to host failed", -1);
-
 	ASSERT(cudaSuccess == cudaMemcpy(h_decS, d_decS, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decS from device to host failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(&h_posS, d_posS, sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posS from device to host failed", -1);
-
 	ASSERT(cudaSuccess == cudaMemcpy(h_decX, d_decX, BLOCK_X * BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decX from device to host failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(&h_posX, d_posX, BLOCK_X * sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posX from device to host failed", -1);
-
 	ASSERT(cudaSuccess == cudaMemcpy(h_decY, d_decY, BLOCK_X * BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decY from device to host failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(&h_posY, d_posY, BLOCK_X * sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posY from device to host failed", -1);
 
@@ -679,17 +696,10 @@ int testBigMandelGPU()
 	ASSERT(cudaSuccess == cudaFree(d_posC), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_posS), "Device deallocation failed", -1);
 
-	//displayBigArray(h_posX, h_decX, BLOCK_X);
 	displayBigArray2dec(h_posX, h_decX, BLOCK_X);
 	cout << "========" << endl;
 	displayBigArray2dec(h_posY, h_decY, BLOCK_X);
 
-	/*cout << "A = " << (h_posA ? "+" : "-") << "  " << h_decA[0] << " " << h_decA[1] << " " << h_decA[2] << " " << h_decA[3] << endl;
-	cout << "B = " << (h_posB ? "+" : "-") << "  " << h_decB[0] << " " << h_decB[1] << " " << h_decB[2] << " " << h_decB[3] << endl << endl;
-	cout << "C = " << (h_posC ? "+" : "-") << "  " << h_decC[0] << " " << h_decC[1] << " " << h_decC[2] << " " << h_decC[3] << endl;
-
-	cout << " A =  " << endl;
-	display2dec(h_posA, h_decA);*/
 
 	return EXIT_SUCCESS;
 }
