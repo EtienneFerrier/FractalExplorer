@@ -65,6 +65,29 @@ void displayBigArray2dec(bool* pos, uint32_t* dec, int arraySize)
 	}
 }
 
+// Convertit RGB en Uint32
+__device__ uint32_t couleur(int r, int g, int b)
+{
+	return (((r << 8) + g) << 8) + b;
+}
+
+// Methode de coloration en couleur 32bits version sombre
+// Augmenter divFactor permet d'avoir une fréquence plus importante de variation des couleurs (mettre 1 par defaut)
+__device__ uint32_t computeColor_32_DARK(int countMax, int count, int divFactor)
+{
+	int k = ((count * divFactor) % countMax);
+	int p = countMax / 4;
+	int m = k % p;
+
+	if (k < p)
+		return couleur(0, 0, 255 * m / p);
+	else if (k < 2 * p)
+		return couleur(255 * m / p, 0, 255);
+	else if (k < 3 * p)
+		return couleur(255, 0, (255 - 255 * m / p));
+	else return couleur(255, 255 * m / p, 0);
+}
+
 // Initialise 1/100 en BigFLoat
 // Pourrait etre une macro preproc
 // A changer des que l'on change la taille de la fenetre
@@ -528,16 +551,40 @@ __device__ bool testSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 	return res;
 }
 
-__device__ int iterateBelette(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY)
+// Boucle d'iteration principale
+// TODO : verifier la synchronisation (a l'air de marcher)
+__device__ void computeMandel(uint32_t* res, bool* posXinit, uint32_t* decXinit, bool* posYinit, uint32_t* decYinit, bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp, bool* posSq, uint32_t* decSq)
 {
-	__shared__ uint32_t decTmp[BLOCK_X * BIG_FLOAT_SIZE];
-	__shared__ uint32_t decSq[BLOCK_X * BIG_FLOAT_SIZE];
-	__shared__ bool posTmp[BLOCK_X];
-	__shared__ bool posSq[BLOCK_X];
-
+	const unsigned int ti = threadIdx.x;
+	const unsigned int k = blockDim.z * blockIdx.z + threadIdx.z;
 	const unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
 
-	complexSquare(posX + i, decX + i*BIG_FLOAT_SIZE, posY + i, decY + i*BIG_FLOAT_SIZE, posTmp + i, decTmp + i*BIG_FLOAT_SIZE, posSq + i, decSq + i*BIG_FLOAT_SIZE);
+	__shared__ int nbIter[BLOCK_X];
+
+	if (k == 0)
+		nbIter[ti] = 0;
+
+	__syncthreads();
+	
+	// TODO : Verfier la synchronisation (a l'air de marcher)
+	while (testSquare(posX, decX, posY, decY) && nbIter[ti] < NB_ITERATIONS)
+	{
+		complexSquare(posX, decX, posY, decY, posTmp, decTmp, posSq, decSq);
+		addIP(posX, decX, *posXinit, decXinit);
+		addIP(posY, decY, *posYinit, decYinit);
+
+		if (k == 0)
+			nbIter[ti] ++;
+
+		__syncthreads();
+	}
+
+	if (k == 0)
+		res[i] = computeColor_32_DARK(NB_ITERATIONS, nbIter[ti], 1);
+		//res[i] = nbIter[ti];
+	
+
+	__syncthreads();
 }
 
 // Charge le point de depart des iterations dans Res
@@ -554,23 +601,45 @@ __device__ void loadStart(int x, bool posC, uint32_t* decC, uint32_t* scale, boo
 	addIP(posRes, decRes, posC, decC);	// Res += C
 }
 
-__global__ void testKernel(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posC, uint32_t* decC, uint32_t* decS)
+__global__ void testKernel(uint32_t* res, bool* posXref, uint32_t* decXref, bool* posYref, uint32_t* decYref, bool* posCx, uint32_t* decCx, bool* posCy, uint32_t* decCy, uint32_t* decS)
 {
-	//const unsigned int ti = threadIdx.x;
+	const unsigned int ti = threadIdx.x;
 	const unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
 	const unsigned int j = blockIdx.y*blockDim.y + threadIdx.y;
 
-	// DOUDOU : Faire la memoire partagee
-	/*__shared__ uint32_t decTmp[BLOCK_X * BIG_FLOAT_SIZE];
+	__shared__ uint32_t decXinit[BLOCK_X * BIG_FLOAT_SIZE];
+	__shared__ uint32_t decYinit[BLOCK_X * BIG_FLOAT_SIZE];
+	__shared__ uint32_t decX[BLOCK_X * BIG_FLOAT_SIZE];
+	__shared__ uint32_t decY[BLOCK_X * BIG_FLOAT_SIZE];
+	__shared__ uint32_t decTmp[BLOCK_X * BIG_FLOAT_SIZE];
 	__shared__ uint32_t decSq[BLOCK_X * BIG_FLOAT_SIZE];
+
+	__shared__ bool posXinit[BLOCK_X];
+	__shared__ bool posYinit[BLOCK_X];
+	__shared__ bool posX[BLOCK_X];
+	__shared__ bool posY[BLOCK_X];
 	__shared__ bool posTmp[BLOCK_X];
-	__shared__ bool posSq[BLOCK_X];*/
+	__shared__ bool posSq[BLOCK_X];
 
 	// Test iterate
-	loadStart(i, *posC, decC, decS, posX + i, decX + i*BIG_FLOAT_SIZE);
-	loadStart(j, *posC, decC, decS, posY + i, decY + i*BIG_FLOAT_SIZE); // Changer cet appel quand intégration de la dimension j
-	//iterateBelette(posX, decX, posY, decY);
+	loadStart(i, *posCx, decCx, decS, posXinit + ti, decXinit + ti*BIG_FLOAT_SIZE);
+	loadStart(j, *posCy, decCy, decS, posYinit + ti, decYinit + ti*BIG_FLOAT_SIZE);
 
+	copyBig(posX + ti, decX + ti*BIG_FLOAT_SIZE, posXinit[ti], decXinit + ti*BIG_FLOAT_SIZE);
+	copyBig(posY + ti, decY + ti*BIG_FLOAT_SIZE, posYinit[ti], decYinit + ti*BIG_FLOAT_SIZE);
+
+	computeMandel(res, 
+		posXinit + ti, decXinit + ti*BIG_FLOAT_SIZE, posYinit + ti, decYinit + ti*BIG_FLOAT_SIZE, 
+		posX + ti, decX + ti*BIG_FLOAT_SIZE, posY + ti, decY + ti*BIG_FLOAT_SIZE, 
+		posTmp + ti, decTmp + ti*BIG_FLOAT_SIZE, posSq + ti, decSq + ti*BIG_FLOAT_SIZE);
+
+	//res[i] = testSquare(posX + ti, decX + ti*BIG_FLOAT_SIZE, posY + ti, decY + ti*BIG_FLOAT_SIZE);
+	
+	
+	copyBig(posXref + ti, decXref + ti*BIG_FLOAT_SIZE, posX[ti], decX + ti*BIG_FLOAT_SIZE);
+	copyBig(posYref + ti, decYref + ti*BIG_FLOAT_SIZE, posY[ti], decY + ti*BIG_FLOAT_SIZE);
+	
+	/*
 	// Test testSquare
 	//posY[i] = testSquare(posX + i, decX + i*BIG_FLOAT_SIZE, posY + i, decY + i*BIG_FLOAT_SIZE);
 
@@ -578,127 +647,150 @@ __global__ void testKernel(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 	//loadStart(i, *posC, decC, decS, posX + i, decX + i*BIG_FLOAT_SIZE);
 	//loadStart(j, *posC, decC, decS, posY + i, decY + i*BIG_FLOAT_SIZE); // Changer cet appel quand intégration de la dimension j
 
-	//if (i == 2)
-	//{
-	//	// Test complexSquare
-	//	//complexSquare(posA, decA, posB, decB, &posTmp, decTmp, &posSq, decSq);
+	
+	if (i == 2)
+	{
+		// Test complexSquare
+		//complexSquare(posA, decA, posB, decB, &posTmp, decTmp, &posSq, decSq);
 
-	//	// Test squareIP
-	//	//multIP(posB, decB, *posA, decA);
-	//	//multIP(posA, decA, *posA, decA);
+		// Test squareIP
+		//multIP(posB, decB, *posA, decA);
+		//multIP(posA, decA, *posA, decA);
 
-	//	// Test negate
-	//	//negate(posA);
+		// Test negate
+		//negate(posA);
 
-	//	// Test loadStart
-	//	//loadStart(*decA, decA, decB, posC, decC);
+		// Test loadStart
+		//loadStart(*decA, decA, decB, posC, decC);
 
-	//	// Test minusHalfIP
-	//	//minusHalfIP(posA, decA);
+		// Test minusHalfIP
+		//minusHalfIP(posA, decA);
 
-	//	// Test multIntIP
-	//	//multIntIP(posA, decA, false, -1);
+		// Test multIntIP
+		//multIntIP(posA, decA, false, -1);
 
-	//	// TEST addIP
-	//	//addIP(posA, decA, *posB, decB);
+		// TEST addIP
+		//addIP(posA, decA, *posB, decB);
 
-	//	// TEST multIP
-	//	//multIP(posA, decA, *posB, decB);
+		// TEST multIP
+		//multIP(posA, decA, *posB, decB);
 
-	//	// TEST mult
-	//	//mult(*posA, decA, *posB, decB, posC, decC);
-	//	
-	//	// TEST multDigDig
-	//	/*uint32_t little = 0;
-	//	uint32_t big = 0;
-	//	uint8_t carry = 0;
-	//	
-	//	multDigDig(decA[1], decB[1], &carry, &big, &little);
-	//	decC[0] += carry;
-	//	decC[1] += big;
-	//	decC[2] += little;*/
+		// TEST mult
+		//mult(*posA, decA, *posB, decB, posC, decC);
+		
+		// TEST multDigDig
+		//uint32_t little = 0;
+		//uint32_t big = 0;
+		//uint8_t carry = 0;
+		//
+		//multDigDig(decA[1], decB[1], &carry, &big, &little);
+		//decC[0] += carry;
+		//decC[1] += big;
+		//decC[2] += little;
 
-	//	// TEST addition
-	//	//add(*posA, decA, *posB, decB, posC, decC);
-	//}
+		// TEST addition
+		//add(*posA, decA, *posB, decB, posC, decC);
+	}*/
 
 }
 
 // Fonction de communication avec le GPU, lance les thread et gère les échanges mémoire
 int testBigMandelGPU()
 {
+	uint32_t* d_res;
 	uint32_t* d_decX;
 	uint32_t* d_decY;
-	uint32_t* d_decC;
+	uint32_t* d_decCx;
+	uint32_t* d_decCy;
 	uint32_t* d_decS;
 	bool* d_posX;
 	bool* d_posY;
-	bool* d_posC;
+	bool* d_posCx;
+	bool* d_posCy;
 	bool* d_posS;
 
+	ASSERT(cudaSuccess == cudaMalloc(&d_res, BLOCK_X * sizeof(uint32_t)), "Device allocation of res failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_decX, BLOCK_X * BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decX failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_decY, BLOCK_X * BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decY failed", -1);
-	ASSERT(cudaSuccess == cudaMalloc(&d_decC, BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decC failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_decCx, BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decCx failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_decCy, BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decCy failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_decS, BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decS failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_posX, BLOCK_X * sizeof(bool)), "Device allocation of posX failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_posY, BLOCK_X * sizeof(bool)), "Device allocation of posY failed", -1);
-	ASSERT(cudaSuccess == cudaMalloc(&d_posC, sizeof(bool)), "Device allocation of posC failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_posCx, sizeof(bool)), "Device allocation of posC failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_posCy, sizeof(bool)), "Device allocation of posC failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_posS, sizeof(bool)), "Device allocation of posS failed", -1);
 
+	uint32_t h_res[BLOCK_X];
 	uint32_t h_decX[BLOCK_X * BIG_FLOAT_SIZE];
 	uint32_t h_decY[BLOCK_X * BIG_FLOAT_SIZE];
-	uint32_t h_decC[BIG_FLOAT_SIZE];
+	uint32_t h_decCx[BIG_FLOAT_SIZE];
+	uint32_t h_decCy[BIG_FLOAT_SIZE];
 	uint32_t h_decS[BIG_FLOAT_SIZE];
 	bool h_posX[BLOCK_X];
 	bool h_posY[BLOCK_X];
-	bool h_posC;
+	bool h_posCx;
+	bool h_posCy;
 	bool h_posS;
 
-	h_decC[0] = 0;
-	h_decC[1] = 0;
-	h_decC[2] = 0;
-	h_decC[3] = 0;
-	h_posC = true;
+	h_decCx[0] = 0;
+	h_decCx[1] = 3006477107;
+	h_decCx[2] = 0;
+	h_decCx[3] = 0;
+	h_posCx = true;
 
-	h_decS[0] = 3;
+	h_decCy[0] = 0;
+	h_decCy[1] = 0;
+	h_decCy[2] = 0;
+	h_decCy[3] = 0;
+	h_posCy = true;
+
+	h_decS[0] = 1;
 	h_decS[1] = 0;
 	h_decS[2] = 0;
 	h_decS[3] = 0;
 	h_posS = true;
 
-	ASSERT(cudaSuccess == cudaMemcpy(d_decC, h_decC, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decC from host to device failed", -1);
-	ASSERT(cudaSuccess == cudaMemcpy(d_posC, &h_posC, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posC from host to device failed", -1); 
+	ASSERT(cudaSuccess == cudaMemcpy(d_decCx, h_decCx, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decCx from host to device failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(d_posCx, &h_posCx, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posCx from host to device failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(d_decCy, h_decCy, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decCy from host to device failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(d_posCy, &h_posCy, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posCy from host to device failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(d_decS, h_decS, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decS from host to device failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(d_posS, &h_posS, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posS from host to device failed", -1);
 
 	dim3 cudaBlockSize(BLOCK_X, 1, BIG_FLOAT_SIZE); // ATTENTION, 1024 threads max par block
 	dim3 cudaGridSize(1, 1, 1);
-	testKernel << <cudaGridSize, cudaBlockSize >> >(d_posX, d_decX, d_posY, d_decY, d_posC, d_decC, d_decS);
+	testKernel << <cudaGridSize, cudaBlockSize >> >(d_res, d_posX, d_decX, d_posY, d_decY, d_posCx, d_decCx, d_posCy, d_decCy, d_decS);
 
 	ASSERT(cudaSuccess == cudaGetLastError(), "Kernel launch failed", -1);
 	ASSERT(cudaSuccess == cudaDeviceSynchronize(), "Kernel synchronization failed", -1);
 
-	ASSERT(cudaSuccess == cudaMemcpy(h_decC, d_decC, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decC from device to host failed", -1);
-	ASSERT(cudaSuccess == cudaMemcpy(&h_posC, d_posC, sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posC from device to host failed", -1);
-	ASSERT(cudaSuccess == cudaMemcpy(h_decS, d_decS, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decS from device to host failed", -1);
-	ASSERT(cudaSuccess == cudaMemcpy(&h_posS, d_posS, sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posS from device to host failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(h_res, d_res, BLOCK_X * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decC from device to host failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(h_decX, d_decX, BLOCK_X * BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decX from device to host failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(&h_posX, d_posX, BLOCK_X * sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posX from device to host failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(h_decY, d_decY, BLOCK_X * BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decY from device to host failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(&h_posY, d_posY, BLOCK_X * sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posY from device to host failed", -1);
 
+	ASSERT(cudaSuccess == cudaFree(d_res), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_decX), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_decY), "Device deallocation failed", -1);
-	ASSERT(cudaSuccess == cudaFree(d_decC), "Device deallocation failed", -1);
+	ASSERT(cudaSuccess == cudaFree(d_decCx), "Device deallocation failed", -1);
+	ASSERT(cudaSuccess == cudaFree(d_decCy), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_decS), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_posX), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_posY), "Device deallocation failed", -1);
-	ASSERT(cudaSuccess == cudaFree(d_posC), "Device deallocation failed", -1);
+	ASSERT(cudaSuccess == cudaFree(d_posCx), "Device deallocation failed", -1);
+	ASSERT(cudaSuccess == cudaFree(d_posCy), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_posS), "Device deallocation failed", -1);
-
+	
 	displayBigArray2dec(h_posX, h_decX, BLOCK_X);
 	cout << "========" << endl;
 	displayBigArray2dec(h_posY, h_decY, BLOCK_X);
+	cout << "========" << endl;
+	for (int i = 0; i < BLOCK_X; i++)
+	{
+		cout << h_res[i] << endl;
+	}
 
 
 	return EXIT_SUCCESS;
