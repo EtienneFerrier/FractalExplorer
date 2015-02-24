@@ -21,7 +21,7 @@ using namespace std;
 
 
 int affichageGPU(Affichage* disp);
-
+int computeBigMandelGPU(Affichage* disp);
 
 
 class Events{
@@ -37,7 +37,11 @@ public:
 		disp->start = chrono::system_clock::now();
 
 		if (GPU)
-			affichageGPU(disp);
+		{
+			//affichageGPU(disp);
+			computeBigMandelGPU(disp);
+		}
+
 		else
 			if (BIG_FLOAT_SIZE == 0)
 				Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);

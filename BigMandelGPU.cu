@@ -1,9 +1,10 @@
 /*
-Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU.
+Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU avec precision arbitraire
 */
 
-// Optimisations possibles
-// Ne pas calculer k à chaque fonction
+// Optimisations possibles :
+//// Ne pas calculer k (ou i ou j) à chaque fonction
+//// Limiter les lectures a la mem globale
 
 #pragma once
 
@@ -16,7 +17,6 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU.
 
 #include "Parametres.hpp"
 #include "Affichage.hpp"
-
 
 
 #define ASSERT(x, msg, retcode) \
@@ -117,9 +117,61 @@ __device__ void getStep100(bool* pos, uint32_t* dec)
 	__syncthreads();
 }
 
+// Initialise 1/256 en BigFLoat
+__device__ void getStep256(bool* pos, uint32_t* dec)
+{
+	*pos = true;
+	dec[0] = 0;
+#if BIG_FLOAT_SIZE > 1
+	dec[1] = 16766216;
+#endif
+#if BIG_FLOAT_SIZE > 2
+	dec[2] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 3
+	dec[3] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 4
+	dec[4] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 4
+	dec[5] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 4
+	dec[6] = 0;
+#endif
+
+	__syncthreads();
+}
+
+// Initialise 1/512 en BigFLoat
+__device__ void getStep512(bool* pos, uint32_t* dec)
+{
+	*pos = true;
+	dec[0] = 0;
+#if BIG_FLOAT_SIZE > 1
+	dec[1] = 16766216/2;
+#endif
+#if BIG_FLOAT_SIZE > 2
+	dec[2] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 3
+	dec[3] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 4
+	dec[4] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 4
+	dec[5] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 4
+	dec[6] = 0;
+#endif
+
+	__syncthreads();
+}
+
 // Initialise 1/600 en BigFLoat
-// Pourrait etre une macro preproc
-// A changer des que l'on change la taille de la fenetre
 __device__ void getStep600(bool* pos, uint32_t* dec)
 {
 	*pos = true;
@@ -214,65 +266,6 @@ __device__ void negate(bool* pos)
 	__syncthreads();
 }
 
-// C = A + B
-//__device__ void add(bool posA, uint32_t* decA, bool posB, uint32_t* decB, bool* posC, uint32_t* decC)
-//{
-//	const unsigned int k = blockIdx.z*blockDim.z + threadIdx.z;
-//	bool carry;
-//
-//	if (posA == posB)	// Cas simple (addition unsigned)
-//	{
-//		decC[k] = decA[k] + decB[k]; // Addition
-//		carry = decC[k] < decA[k]; // Calcul des retenues
-//		__syncthreads();
-//
-//		if (k > 0) 
-//		{
-//			decC[k - 1] += carry; // Propagation des retenues (une seule fois)
-//		}
-//		else
-//		{
-//			*posC = posA; // Calcul du signe du resultat
-//		}
-//		__syncthreads();
-//	}
-//	else // Cas complique (soustraction)
-//	{
-//		decC[k] = decA[k] - decB[k]; // Soustraction
-//		carry = decC[k] > decA[k]; // Calcul des retenues 
-//		__syncthreads();
-//
-//		if (k > 0)
-//		{
-//			decC[k-1] -= carry; // Propagation des retenues (une seule fois)
-//		}
-//		__syncthreads();
-//
-//		if(k == 0)
-//		{
-//			*posC = (carry || decC[0] == -1) ^ posA; // ATTENTION : pas le signe de C mais un indicateur de |A| < |B| (valeur absolue)
-//		}
-//		__syncthreads();
-//
-//		if (*posC ^ posA) // Dans ce cas, |B| > |A|. On doit donc recalculer la soustraction
-//		{
-//			decC[k] = decB[k] - decA[k];
-//			carry = decC[k] > decB[k];
-//			__syncthreads();
-//
-//			if (k > 0)
-//			{
-//				decC[k - 1] -= carry;
-//			}
-//			else
-//			{
-//				*posC = posB; // Signe du resultat
-//			}
-//			__syncthreads();
-//		}
-//	}
-//}
-
 // A = A + B (In Place)
 __device__ void addIP(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
 {
@@ -362,47 +355,6 @@ __device__ void multDigDig(uint32_t a, uint32_t b, uint8_t* carry, uint32_t* tmp
 	*tmpBig += ahbh;
 	*carry += (*tmpBig < ahbh);
 }
-
-// C = A * B
-//__device__ void mult(bool posA, uint32_t* decA, bool posB, uint32_t* decB, bool* posC, uint32_t* decC)
-//{
-//	const unsigned int k = blockIdx.z*blockDim.z + threadIdx.z;
-//
-//	uint32_t little = 0; // sera ajoute a decC[k]
-//	uint32_t big = 0; // sera ajoute a decC[k-1]
-//	uint8_t carry = 0; // sera ajoute a decC[k-2]
-//
-//	for (int i = 0; i <= k; i++)
-//	{
-//		multDigDig(decA[i], decB[k - i], &carry, &big, &little);
-//	}
-//
-//	__syncthreads();
-//
-//	decC[k] = little;
-//
-//	__syncthreads();
-//
-//	if (k > 0)
-//	{
-//		decC[k - 1] += big;
-//		if (decC[k-1] < big)
-//		{
-//			carry++;
-//		}
-//	}
-//	else
-//		*posC = !(posA ^ posB);
-//
-//
-//	__syncthreads();
-//
-//	if (k > 1)
-//		decC[k - 2] += carry; // NON EXACT (pas de propagation)
-//
-//	__syncthreads();
-//
-//}
 
 // A = A * B (In Place)
 __device__ void multIP(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
@@ -557,7 +509,6 @@ __device__ void computeMandel(uint32_t* res, bool* posXinit, uint32_t* decXinit,
 {
 	const unsigned int ti = threadIdx.x;
 	const unsigned int k = blockDim.z * blockIdx.z + threadIdx.z;
-	const unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
 
 	__shared__ int nbIter[BLOCK_X];
 
@@ -580,9 +531,7 @@ __device__ void computeMandel(uint32_t* res, bool* posXinit, uint32_t* decXinit,
 	}
 
 	if (k == 0)
-		res[i] = computeColor_32_DARK(NB_ITERATIONS, nbIter[ti], 1);
-		//res[i] = nbIter[ti];
-	
+		*res = computeColor_32_DARK(NB_ITERATIONS, nbIter[ti], 1);
 
 	__syncthreads();
 }
@@ -592,19 +541,19 @@ __device__ void computeMandel(uint32_t* res, bool* posXinit, uint32_t* decXinit,
 // C est le centre de la zone
 // x = i ou j
 // TODO : voir si passer k en parametre dans toutes les fonctions optimise.
-__device__ void loadStart(int x, bool posC, uint32_t* decC, uint32_t* scale, bool* posRes, uint32_t* decRes)
+__device__ void loadStart(int n, bool posC, uint32_t* decC, uint32_t* scale, bool* posRes, uint32_t* decRes)
 {
-	getStep100(posRes, decRes);			// Res = 1/100
-	multIntIP(posRes, decRes, true, x);	// Res *= i
+	getStep512(posRes, decRes);			// Res = 1/512
+	multIntIP(posRes, decRes, true, n);	// Res *= i
 	minusHalfIP(posRes, decRes);		// Res -= 0.5
 	multIP(posRes, decRes, true, scale);// Res *= scale
 	addIP(posRes, decRes, posC, decC);	// Res += C
 }
 
-__global__ void testKernel(uint32_t* res, bool* posXref, uint32_t* decXref, bool* posYref, uint32_t* decYref, bool* posCx, uint32_t* decCx, bool* posCy, uint32_t* decCy, uint32_t* decS)
+__global__ void testKernel(uint32_t* res, bool* posCx, uint32_t* decCx, bool* posCy, uint32_t* decCy, uint32_t* decS)
 {
 	const unsigned int ti = threadIdx.x;
-	const unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+	const unsigned int i = blockIdx.x*blockDim.x + ti;
 	const unsigned int j = blockIdx.y*blockDim.y + threadIdx.y;
 
 	__shared__ uint32_t decXinit[BLOCK_X * BIG_FLOAT_SIZE];
@@ -621,131 +570,58 @@ __global__ void testKernel(uint32_t* res, bool* posXref, uint32_t* decXref, bool
 	__shared__ bool posTmp[BLOCK_X];
 	__shared__ bool posSq[BLOCK_X];
 
-	// Test iterate
 	loadStart(i, *posCx, decCx, decS, posXinit + ti, decXinit + ti*BIG_FLOAT_SIZE);
 	loadStart(j, *posCy, decCy, decS, posYinit + ti, decYinit + ti*BIG_FLOAT_SIZE);
 
 	copyBig(posX + ti, decX + ti*BIG_FLOAT_SIZE, posXinit[ti], decXinit + ti*BIG_FLOAT_SIZE);
 	copyBig(posY + ti, decY + ti*BIG_FLOAT_SIZE, posYinit[ti], decYinit + ti*BIG_FLOAT_SIZE);
 
-	computeMandel(res, 
+	computeMandel(res + WIDTH*j + i, 
 		posXinit + ti, decXinit + ti*BIG_FLOAT_SIZE, posYinit + ti, decYinit + ti*BIG_FLOAT_SIZE, 
 		posX + ti, decX + ti*BIG_FLOAT_SIZE, posY + ti, decY + ti*BIG_FLOAT_SIZE, 
 		posTmp + ti, decTmp + ti*BIG_FLOAT_SIZE, posSq + ti, decSq + ti*BIG_FLOAT_SIZE);
-
-	//res[i] = testSquare(posX + ti, decX + ti*BIG_FLOAT_SIZE, posY + ti, decY + ti*BIG_FLOAT_SIZE);
-	
-	
-	copyBig(posXref + ti, decXref + ti*BIG_FLOAT_SIZE, posX[ti], decX + ti*BIG_FLOAT_SIZE);
-	copyBig(posYref + ti, decYref + ti*BIG_FLOAT_SIZE, posY[ti], decY + ti*BIG_FLOAT_SIZE);
-	
-	/*
-	// Test testSquare
-	//posY[i] = testSquare(posX + i, decX + i*BIG_FLOAT_SIZE, posY + i, decY + i*BIG_FLOAT_SIZE);
-
-	// Test loadStart multiple
-	//loadStart(i, *posC, decC, decS, posX + i, decX + i*BIG_FLOAT_SIZE);
-	//loadStart(j, *posC, decC, decS, posY + i, decY + i*BIG_FLOAT_SIZE); // Changer cet appel quand intégration de la dimension j
-
-	
-	if (i == 2)
-	{
-		// Test complexSquare
-		//complexSquare(posA, decA, posB, decB, &posTmp, decTmp, &posSq, decSq);
-
-		// Test squareIP
-		//multIP(posB, decB, *posA, decA);
-		//multIP(posA, decA, *posA, decA);
-
-		// Test negate
-		//negate(posA);
-
-		// Test loadStart
-		//loadStart(*decA, decA, decB, posC, decC);
-
-		// Test minusHalfIP
-		//minusHalfIP(posA, decA);
-
-		// Test multIntIP
-		//multIntIP(posA, decA, false, -1);
-
-		// TEST addIP
-		//addIP(posA, decA, *posB, decB);
-
-		// TEST multIP
-		//multIP(posA, decA, *posB, decB);
-
-		// TEST mult
-		//mult(*posA, decA, *posB, decB, posC, decC);
 		
-		// TEST multDigDig
-		//uint32_t little = 0;
-		//uint32_t big = 0;
-		//uint8_t carry = 0;
-		//
-		//multDigDig(decA[1], decB[1], &carry, &big, &little);
-		//decC[0] += carry;
-		//decC[1] += big;
-		//decC[2] += little;
-
-		// TEST addition
-		//add(*posA, decA, *posB, decB, posC, decC);
-	}*/
-
 }
 
 // Fonction de communication avec le GPU, lance les thread et gère les échanges mémoire
-int testBigMandelGPU()
+int computeBigMandelGPU(Affichage* display)
 {
 	uint32_t* d_res;
-	uint32_t* d_decX;
-	uint32_t* d_decY;
 	uint32_t* d_decCx;
 	uint32_t* d_decCy;
 	uint32_t* d_decS;
-	bool* d_posX;
-	bool* d_posY;
 	bool* d_posCx;
 	bool* d_posCy;
 	bool* d_posS;
 
-	ASSERT(cudaSuccess == cudaMalloc(&d_res, BLOCK_X * sizeof(uint32_t)), "Device allocation of res failed", -1);
-	ASSERT(cudaSuccess == cudaMalloc(&d_decX, BLOCK_X * BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decX failed", -1);
-	ASSERT(cudaSuccess == cudaMalloc(&d_decY, BLOCK_X * BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decY failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_res, WIDTH * HEIGHT * sizeof(uint32_t)), "Device allocation of res failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_decCx, BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decCx failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_decCy, BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decCy failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_decS, BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decS failed", -1);
-	ASSERT(cudaSuccess == cudaMalloc(&d_posX, BLOCK_X * sizeof(bool)), "Device allocation of posX failed", -1);
-	ASSERT(cudaSuccess == cudaMalloc(&d_posY, BLOCK_X * sizeof(bool)), "Device allocation of posY failed", -1);
-	ASSERT(cudaSuccess == cudaMalloc(&d_posCx, sizeof(bool)), "Device allocation of posC failed", -1);
-	ASSERT(cudaSuccess == cudaMalloc(&d_posCy, sizeof(bool)), "Device allocation of posC failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_posCx, sizeof(bool)), "Device allocation of posCx failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_posCy, sizeof(bool)), "Device allocation of posCy failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_posS, sizeof(bool)), "Device allocation of posS failed", -1);
 
-	uint32_t h_res[BLOCK_X];
-	uint32_t h_decX[BLOCK_X * BIG_FLOAT_SIZE];
-	uint32_t h_decY[BLOCK_X * BIG_FLOAT_SIZE];
 	uint32_t h_decCx[BIG_FLOAT_SIZE];
 	uint32_t h_decCy[BIG_FLOAT_SIZE];
 	uint32_t h_decS[BIG_FLOAT_SIZE];
-	bool h_posX[BLOCK_X];
-	bool h_posY[BLOCK_X];
 	bool h_posCx;
 	bool h_posCy;
 	bool h_posS;
 
 	h_decCx[0] = 0;
-	h_decCx[1] = 3006477107;
+	h_decCx[1] = 0;// 3006477107;
 	h_decCx[2] = 0;
 	h_decCx[3] = 0;
 	h_posCx = true;
 
 	h_decCy[0] = 0;
-	h_decCy[1] = 0;
+	h_decCy[1] = 0;// 2147483648;
 	h_decCy[2] = 0;
 	h_decCy[3] = 0;
 	h_posCy = true;
 
-	h_decS[0] = 1;
+	h_decS[0] = 4;
 	h_decS[1] = 0;
 	h_decS[2] = 0;
 	h_decS[3] = 0;
@@ -758,40 +634,22 @@ int testBigMandelGPU()
 	ASSERT(cudaSuccess == cudaMemcpy(d_decS, h_decS, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decS from host to device failed", -1);
 	ASSERT(cudaSuccess == cudaMemcpy(d_posS, &h_posS, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posS from host to device failed", -1);
 
-	dim3 cudaBlockSize(BLOCK_X, 1, BIG_FLOAT_SIZE); // ATTENTION, 1024 threads max par block
-	dim3 cudaGridSize(1, 1, 1);
-	testKernel << <cudaGridSize, cudaBlockSize >> >(d_res, d_posX, d_decX, d_posY, d_decY, d_posCx, d_decCx, d_posCy, d_decCy, d_decS);
+	dim3 cudaBlockSize(BLOCK_X, BLOCK_Y, BIG_FLOAT_SIZE); // ATTENTION, 1024 threads max par block
+	dim3 cudaGridSize(WIDTH / BLOCK_X, HEIGHT / BLOCK_Y, 1); // ATTENTION : changer lorsque la grille n'est pas parfaitement adaptée a la fenetre
+	testKernel << <cudaGridSize, cudaBlockSize >> >(d_res, d_posCx, d_decCx, d_posCy, d_decCy, d_decS);
 
 	ASSERT(cudaSuccess == cudaGetLastError(), "Kernel launch failed", -1);
 	ASSERT(cudaSuccess == cudaDeviceSynchronize(), "Kernel synchronization failed", -1);
 
-	ASSERT(cudaSuccess == cudaMemcpy(h_res, d_res, BLOCK_X * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decC from device to host failed", -1);
-	ASSERT(cudaSuccess == cudaMemcpy(h_decX, d_decX, BLOCK_X * BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decX from device to host failed", -1);
-	ASSERT(cudaSuccess == cudaMemcpy(&h_posX, d_posX, BLOCK_X * sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posX from device to host failed", -1);
-	ASSERT(cudaSuccess == cudaMemcpy(h_decY, d_decY, BLOCK_X * BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decY from device to host failed", -1);
-	ASSERT(cudaSuccess == cudaMemcpy(&h_posY, d_posY, BLOCK_X * sizeof(bool), cudaMemcpyDeviceToHost), "Copy of posY from device to host failed", -1);
-
+	ASSERT(cudaSuccess == cudaMemcpy(display->pixels, d_res, WIDTH * HEIGHT * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decC from device to host failed", -1);
+	
 	ASSERT(cudaSuccess == cudaFree(d_res), "Device deallocation failed", -1);
-	ASSERT(cudaSuccess == cudaFree(d_decX), "Device deallocation failed", -1);
-	ASSERT(cudaSuccess == cudaFree(d_decY), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_decCx), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_decCy), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_decS), "Device deallocation failed", -1);
-	ASSERT(cudaSuccess == cudaFree(d_posX), "Device deallocation failed", -1);
-	ASSERT(cudaSuccess == cudaFree(d_posY), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_posCx), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_posCy), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_posS), "Device deallocation failed", -1);
-	
-	displayBigArray2dec(h_posX, h_decX, BLOCK_X);
-	cout << "========" << endl;
-	displayBigArray2dec(h_posY, h_decY, BLOCK_X);
-	cout << "========" << endl;
-	for (int i = 0; i < BLOCK_X; i++)
-	{
-		cout << h_res[i] << endl;
-	}
-
 
 	return EXIT_SUCCESS;
 }
