@@ -22,7 +22,7 @@ using namespace std;
 
 int affichageGPU(Affichage* disp);
 int computeBigMandelGPU(Affichage* disp);
-
+int computeBigMandelGPU(Affichage* disp, bool h_posCx, uint32_t* h_decCx, bool h_posCy, uint32_t* h_decCy, uint32_t* h_decS);
 
 class Events{
 public:
@@ -36,12 +36,17 @@ public:
 		//Nouveau calcul de la fractale avec chrono
 		disp->start = chrono::system_clock::now();
 
-		if (GPU)
+		if (GPU && BIG_FLOAT_SIZE == 0)
 		{
-			//affichageGPU(disp);
-			computeBigMandelGPU(disp);
+			affichageGPU(disp);		
 		}
-
+		else if (GPU)
+		{
+			Events::yCenter = new BigFloat2();
+			Events::xCenter = new BigFloat2();
+			//computeBigMandelGPU(disp);
+			computeBigMandelGPU(disp, xCenter->pos, xCenter->decimals, yCenter->pos, yCenter->decimals, bigScale->decimals);
+		}
 		else
 			if (BIG_FLOAT_SIZE == 0)
 				Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
@@ -105,9 +110,9 @@ public:
 
 		// MAJ de l'echelle
 		disp->scale *= ZOOM_FACTOR;
-		BigFloat2 zoomFactor(true, 0, 0x80000000, 0, 0);
+		//BigFloat2 zoomFactor(true, 0, 0x80000000, 0, 0);
 		BigFloat2 temp, temp2;
-		BigFloat2::mult(zoomFactor, *bigScale, temp);
+		BigFloat2::mult(ZOOM_FACTOR, *bigScale, temp);
 		bigScale->reset();
 		temp2.copy(*bigScale);
 		BigFloat2::add(temp, temp2, *bigScale);
@@ -115,8 +120,10 @@ public:
 		//Nouveau calcul de la fractale avec chrono
 		disp->start = chrono::system_clock::now();
 
-		if (GPU)
+		if (GPU && BIG_FLOAT_SIZE == 0)
 			affichageGPU(disp);
+		else if (GPU)
+			computeBigMandelGPU(disp, xCenter->pos, xCenter->decimals, yCenter->pos, yCenter->decimals, bigScale->decimals);
 		else
 			if (BIG_FLOAT_SIZE == 0)
 				Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);

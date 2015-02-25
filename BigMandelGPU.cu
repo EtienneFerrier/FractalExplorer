@@ -653,3 +653,74 @@ int computeBigMandelGPU(Affichage* display)
 
 	return EXIT_SUCCESS;
 }
+
+// Fonction de communication avec le GPU, lance les thread et gère les échanges mémoire
+int computeBigMandelGPU(Affichage* display, bool h_posCx, uint32_t* h_decCx, bool h_posCy, uint32_t* h_decCy, uint32_t* h_decS)
+{
+	uint32_t* d_res;
+	uint32_t* d_decCx;
+	uint32_t* d_decCy;
+	uint32_t* d_decS;
+	bool* d_posCx;
+	bool* d_posCy;
+	bool* d_posS;
+
+	ASSERT(cudaSuccess == cudaMalloc(&d_res, WIDTH * HEIGHT * sizeof(uint32_t)), "Device allocation of res failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_decCx, BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decCx failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_decCy, BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decCy failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_decS, BIG_FLOAT_SIZE * sizeof(uint32_t)), "Device allocation of decS failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_posCx, sizeof(bool)), "Device allocation of posCx failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_posCy, sizeof(bool)), "Device allocation of posCy failed", -1);
+	ASSERT(cudaSuccess == cudaMalloc(&d_posS, sizeof(bool)), "Device allocation of posS failed", -1);
+
+	//uint32_t h_decCx[BIG_FLOAT_SIZE];
+	//uint32_t h_decCy[BIG_FLOAT_SIZE];
+	//uint32_t h_decS[BIG_FLOAT_SIZE];
+	//bool h_posCx;
+	//bool h_posCy;
+	//bool h_posS;
+
+	//h_decCx[0] = 0;
+	//h_decCx[1] = 0;// 3006477107;
+	//h_decCx[2] = 0;
+	//h_decCx[3] = 0;
+	//h_posCx = true;
+
+	//h_decCy[0] = 0;
+	//h_decCy[1] = 0;// 2147483648;
+	//h_decCy[2] = 0;
+	//h_decCy[3] = 0;
+	//h_posCy = true;
+
+	//h_decS[0] = 4;
+	//h_decS[1] = 0;
+	//h_decS[2] = 0;
+	//h_decS[3] = 0;
+	bool h_posS = true;
+
+	ASSERT(cudaSuccess == cudaMemcpy(d_decCx, h_decCx, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decCx from host to device failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(d_posCx, &h_posCx, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posCx from host to device failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(d_decCy, h_decCy, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decCy from host to device failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(d_posCy, &h_posCy, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posCy from host to device failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(d_decS, h_decS, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decS from host to device failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(d_posS, &h_posS, sizeof(bool), cudaMemcpyHostToDevice), "Copy of posS from host to device failed", -1);
+
+	dim3 cudaBlockSize(BLOCK_X, BLOCK_Y, BIG_FLOAT_SIZE); // ATTENTION, 1024 threads max par block
+	dim3 cudaGridSize(WIDTH / BLOCK_X, HEIGHT / BLOCK_Y, 1); // ATTENTION : changer lorsque la grille n'est pas parfaitement adaptée a la fenetre
+	testKernel << <cudaGridSize, cudaBlockSize >> >(d_res, d_posCx, d_decCx, d_posCy, d_decCy, d_decS);
+
+	ASSERT(cudaSuccess == cudaGetLastError(), "Kernel launch failed", -1);
+	ASSERT(cudaSuccess == cudaDeviceSynchronize(), "Kernel synchronization failed", -1);
+
+	ASSERT(cudaSuccess == cudaMemcpy(display->pixels, d_res, WIDTH * HEIGHT * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decC from device to host failed", -1);
+
+	ASSERT(cudaSuccess == cudaFree(d_res), "Device deallocation failed", -1);
+	ASSERT(cudaSuccess == cudaFree(d_decCx), "Device deallocation failed", -1);
+	ASSERT(cudaSuccess == cudaFree(d_decCy), "Device deallocation failed", -1);
+	ASSERT(cudaSuccess == cudaFree(d_decS), "Device deallocation failed", -1);
+	ASSERT(cudaSuccess == cudaFree(d_posCx), "Device deallocation failed", -1);
+	ASSERT(cudaSuccess == cudaFree(d_posCy), "Device deallocation failed", -1);
+	ASSERT(cudaSuccess == cudaFree(d_posS), "Device deallocation failed", -1);
+
+	return EXIT_SUCCESS;
+}

@@ -151,7 +151,7 @@ int main(int argc, char** argv)
 		bool buttonDown;
 		switch (event.type)
 		{
-		/*case SDL_MOUSEBUTTONDOWN:
+		case SDL_MOUSEBUTTONDOWN:
 			switch (event.button.button)
 			{
 			case SDL_BUTTON_LEFT:
@@ -170,7 +170,7 @@ int main(int argc, char** argv)
 
 				}
 				break;
-			case SDL_BUTTON_RIGHT:
+			/*case SDL_BUTTON_RIGHT:
 				buttonDown = true;
 				Events::clicDroit(event, &display);
 				while (buttonDown)
@@ -188,9 +188,9 @@ int main(int argc, char** argv)
 				break;
 			default:
 				SDL_ShowSimpleMessageBox(0, "Mouse", "Some other button was pressed!", display.win);
-				break;
+				break;*/
 			}
-			break;*/
+			break;
 		case SDL_QUIT:
 			quit = true;
 			break;
