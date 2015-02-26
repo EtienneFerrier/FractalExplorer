@@ -13,8 +13,6 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU avec preci
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-#include <SDL2/SDL.h>
-
 #include "Parametres.hpp"
 #include "Affichage.hpp"
 
@@ -505,12 +503,10 @@ __device__ bool testSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 
 // Boucle d'iteration principale
 // TODO : verifier la synchronisation (a l'air de marcher)
-__device__ void computeMandel(uint32_t* res, bool* posXinit, uint32_t* decXinit, bool* posYinit, uint32_t* decYinit, bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp, bool* posSq, uint32_t* decSq)
+__device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32_t* decXinit, bool* posYinit, uint32_t* decYinit, bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp, bool* posSq, uint32_t* decSq)
 {
 	const unsigned int ti = threadIdx.x;
 	const unsigned int k = blockDim.z * blockIdx.z + threadIdx.z;
-
-	__shared__ int nbIter[BLOCK_X];
 
 	if (k == 0)
 		nbIter[ti] = 0;
@@ -518,7 +514,7 @@ __device__ void computeMandel(uint32_t* res, bool* posXinit, uint32_t* decXinit,
 	__syncthreads();
 	
 	// TODO : Verfier la synchronisation (a l'air de marcher)
-	while (testSquare(posX, decX, posY, decY) && nbIter[ti] < NB_ITERATIONS)
+	/*while (testSquare(posX, decX, posY, decY) && nbIter[ti] < NB_ITERATIONS)
 	{
 		complexSquare(posX, decX, posY, decY, posTmp, decTmp, posSq, decSq);
 		addIP(posX, decX, *posXinit, decXinit);
@@ -528,10 +524,24 @@ __device__ void computeMandel(uint32_t* res, bool* posXinit, uint32_t* decXinit,
 			nbIter[ti] ++;
 
 		__syncthreads();
+	}*/
+	for (int x = 0; x < NB_ITERATIONS; x++)
+	{
+		if (testSquare(posX, decX, posY, decY))
+		{
+			complexSquare(posX, decX, posY, decY, posTmp, decTmp, posSq, decSq);
+			addIP(posX, decX, *posXinit, decXinit);
+			addIP(posY, decY, *posYinit, decYinit);
+
+			if (k == 0)
+				nbIter[ti] ++;
+		}
+
+		__syncthreads();
 	}
 
 	if (k == 0)
-		*res = computeColor_32_DARK(NB_ITERATIONS, nbIter[ti], 1);
+		*res = computeColor_32_DARK(NB_ITERATIONS, nbIter[ti], 2);
 
 	__syncthreads();
 }
@@ -550,6 +560,7 @@ __device__ void loadStart(int n, bool posC, uint32_t* decC, uint32_t* scale, boo
 	addIP(posRes, decRes, posC, decC);	// Res += C
 }
 
+// Fonction principale
 __global__ void testKernel(uint32_t* res, bool* posCx, uint32_t* decCx, bool* posCy, uint32_t* decCy, uint32_t* decS)
 {
 	const unsigned int ti = threadIdx.x;
@@ -570,20 +581,21 @@ __global__ void testKernel(uint32_t* res, bool* posCx, uint32_t* decCx, bool* po
 	__shared__ bool posTmp[BLOCK_X];
 	__shared__ bool posSq[BLOCK_X];
 
+	__shared__ int nbIter[BLOCK_X];
+
 	loadStart(i, *posCx, decCx, decS, posXinit + ti, decXinit + ti*BIG_FLOAT_SIZE);
 	loadStart(j, *posCy, decCy, decS, posYinit + ti, decYinit + ti*BIG_FLOAT_SIZE);
 
 	copyBig(posX + ti, decX + ti*BIG_FLOAT_SIZE, posXinit[ti], decXinit + ti*BIG_FLOAT_SIZE);
 	copyBig(posY + ti, decY + ti*BIG_FLOAT_SIZE, posYinit[ti], decYinit + ti*BIG_FLOAT_SIZE);
 
-	computeMandel(res + WIDTH*j + i, 
+	computeMandel(res + WIDTH*j + i, nbIter,
 		posXinit + ti, decXinit + ti*BIG_FLOAT_SIZE, posYinit + ti, decYinit + ti*BIG_FLOAT_SIZE, 
 		posX + ti, decX + ti*BIG_FLOAT_SIZE, posY + ti, decY + ti*BIG_FLOAT_SIZE, 
 		posTmp + ti, decTmp + ti*BIG_FLOAT_SIZE, posSq + ti, decSq + ti*BIG_FLOAT_SIZE);
-		
 }
 
-// Fonction de communication avec le GPU, lance les thread et gère les échanges mémoire
+// Affiche la fractale de Mandelbrot centree en 0
 int computeBigMandelGPU(Affichage* display)
 {
 	uint32_t* d_res;
@@ -654,7 +666,7 @@ int computeBigMandelGPU(Affichage* display)
 	return EXIT_SUCCESS;
 }
 
-// Fonction de communication avec le GPU, lance les thread et gère les échanges mémoire
+// Affiche la fractale de Mandelbrot avec les dimensions passees en parametre
 int computeBigMandelGPU(Affichage* display, bool h_posCx, uint32_t* h_decCx, bool h_posCy, uint32_t* h_decCy, uint32_t* h_decS)
 {
 	uint32_t* d_res;
@@ -673,29 +685,6 @@ int computeBigMandelGPU(Affichage* display, bool h_posCx, uint32_t* h_decCx, boo
 	ASSERT(cudaSuccess == cudaMalloc(&d_posCy, sizeof(bool)), "Device allocation of posCy failed", -1);
 	ASSERT(cudaSuccess == cudaMalloc(&d_posS, sizeof(bool)), "Device allocation of posS failed", -1);
 
-	//uint32_t h_decCx[BIG_FLOAT_SIZE];
-	//uint32_t h_decCy[BIG_FLOAT_SIZE];
-	//uint32_t h_decS[BIG_FLOAT_SIZE];
-	//bool h_posCx;
-	//bool h_posCy;
-	//bool h_posS;
-
-	//h_decCx[0] = 0;
-	//h_decCx[1] = 0;// 3006477107;
-	//h_decCx[2] = 0;
-	//h_decCx[3] = 0;
-	//h_posCx = true;
-
-	//h_decCy[0] = 0;
-	//h_decCy[1] = 0;// 2147483648;
-	//h_decCy[2] = 0;
-	//h_decCy[3] = 0;
-	//h_posCy = true;
-
-	//h_decS[0] = 4;
-	//h_decS[1] = 0;
-	//h_decS[2] = 0;
-	//h_decS[3] = 0;
 	bool h_posS = true;
 
 	ASSERT(cudaSuccess == cudaMemcpy(d_decCx, h_decCx, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decCx from host to device failed", -1);

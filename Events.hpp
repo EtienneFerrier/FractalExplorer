@@ -134,7 +134,7 @@ public:
 		disp->end = chrono::system_clock::now();
 		disp->duration = disp->end - disp->start;
 		cout << "Frame computing time : " << disp->duration.count() << endl;
-		cout << "Frame computing scale : " << disp->scale << endl;
+		//cout << "Frame computing scale : " << disp->scale << endl;
 		
 		// Affichage de la fractale
 		disp->dessin();
