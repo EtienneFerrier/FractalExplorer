@@ -75,7 +75,7 @@ public:
 		BigFloat2::mult(((float)event.motion.x) / WIDTH - 0.5f, *bigScale, temp2);
 		BigFloat2::add(*xCenter, temp2, temp);
 		temp2.reset();
-		BigFloat2::mult((1 - ZOOM_FACTOR), temp, temp2);
+		BigFloat2::mult((1.f - ZOOM_FACTOR), temp, temp2);
 		temp.reset();
 		BigFloat2::mult(ZOOM_FACTOR, *xCenter, temp);
 		BigFloat2::add(temp2, temp, *xCenter);
@@ -85,7 +85,7 @@ public:
 		BigFloat2::mult(((float)event.motion.y) / HEIGHT - 0.5f, *bigScale, temp2);
 		BigFloat2::add(*yCenter, temp2, temp);
 		temp2.reset();
-		BigFloat2::mult((1 - ZOOM_FACTOR), temp, temp2);
+		BigFloat2::mult((1.f - ZOOM_FACTOR), temp, temp2);
 		temp.reset();
 		BigFloat2::mult(ZOOM_FACTOR, *yCenter, temp);
 		BigFloat2::add(temp2, temp, *yCenter);
@@ -143,6 +143,8 @@ public:
 	// Dezoome hors de la cible du clic
 	static void clicDroit(SDL_Event& event, Affichage* disp)
 	{
+
+
 		/* Pour les commentaires, voir la methode Event::clicGauche */
 		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5f); 
 		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5f); 
@@ -151,8 +153,10 @@ public:
 		disp->center.y = y + (disp->center.y - y) / DEZOOM_FACTOR;
 		disp->scale /= DEZOOM_FACTOR;
 		disp->start = chrono::system_clock::now();
-		if (GPU)
+		if (GPU && BIG_FLOAT_SIZE == 0)
 			affichageGPU(disp);
+		else if (GPU)
+			computeBigMandelGPU(disp, xCenter->pos, xCenter->decimals, yCenter->pos, yCenter->decimals, bigScale->decimals);
 		else
 			Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
 		disp->end = chrono::system_clock::now();

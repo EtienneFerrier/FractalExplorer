@@ -105,10 +105,10 @@ __device__ void getStep100(bool* pos, uint32_t* dec)
 #if BIG_FLOAT_SIZE > 4
 	dec[4] = 0;
 #endif
-#if BIG_FLOAT_SIZE > 4
+#if BIG_FLOAT_SIZE > 5
 	dec[5] = 0;
 #endif
-#if BIG_FLOAT_SIZE > 4
+#if BIG_FLOAT_SIZE > 6
 	dec[6] = 0;
 #endif
 
@@ -132,10 +132,10 @@ __device__ void getStep256(bool* pos, uint32_t* dec)
 #if BIG_FLOAT_SIZE > 4
 	dec[4] = 0;
 #endif
-#if BIG_FLOAT_SIZE > 4
+#if BIG_FLOAT_SIZE > 5
 	dec[5] = 0;
 #endif
-#if BIG_FLOAT_SIZE > 4
+#if BIG_FLOAT_SIZE > 6
 	dec[6] = 0;
 #endif
 
@@ -159,10 +159,10 @@ __device__ void getStep512(bool* pos, uint32_t* dec)
 #if BIG_FLOAT_SIZE > 4
 	dec[4] = 0;
 #endif
-#if BIG_FLOAT_SIZE > 4
+#if BIG_FLOAT_SIZE > 5
 	dec[5] = 0;
 #endif
-#if BIG_FLOAT_SIZE > 4
+#if BIG_FLOAT_SIZE > 6
 	dec[6] = 0;
 #endif
 
@@ -186,10 +186,10 @@ __device__ void getStep600(bool* pos, uint32_t* dec)
 #if BIG_FLOAT_SIZE > 4
 	dec[4] = 0;
 #endif
-#if BIG_FLOAT_SIZE > 4
+#if BIG_FLOAT_SIZE > 5
 	dec[5] = 0;
 #endif
-#if BIG_FLOAT_SIZE > 4
+#if BIG_FLOAT_SIZE > 6
 	dec[6] = 0;
 #endif
 }
@@ -502,18 +502,15 @@ __device__ bool testSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 }
 
 // Boucle d'iteration principale
-// TODO : verifier la synchronisation (a l'air de marcher)
 __device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32_t* decXinit, bool* posYinit, uint32_t* decYinit, bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp, bool* posSq, uint32_t* decSq)
 {
-	const unsigned int ti = threadIdx.x;
 	const unsigned int k = blockDim.z * blockIdx.z + threadIdx.z;
 
 	if (k == 0)
-		nbIter[ti] = 0;
+		*nbIter = 0;
 
 	__syncthreads();
 	
-	// TODO : Verfier la synchronisation (a l'air de marcher)
 	/*while (testSquare(posX, decX, posY, decY) && nbIter[ti] < NB_ITERATIONS)
 	{
 		complexSquare(posX, decX, posY, decY, posTmp, decTmp, posSq, decSq);
@@ -534,14 +531,14 @@ __device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32
 			addIP(posY, decY, *posYinit, decYinit);
 
 			if (k == 0)
-				nbIter[ti] ++;
+				*nbIter = *nbIter + 1;
 		}
 
 		__syncthreads();
 	}
 
 	if (k == 0)
-		*res = computeColor_32_DARK(NB_ITERATIONS, nbIter[ti], 2);
+		*res = computeColor_32_DARK(NB_ITERATIONS, *nbIter, 1);
 
 	__syncthreads();
 }
@@ -553,7 +550,7 @@ __device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32
 // TODO : voir si passer k en parametre dans toutes les fonctions optimise.
 __device__ void loadStart(int n, bool posC, uint32_t* decC, uint32_t* scale, bool* posRes, uint32_t* decRes)
 {
-	getStep512(posRes, decRes);			// Res = 1/512
+	getStep256(posRes, decRes);			// Res = 1/512
 	multIntIP(posRes, decRes, true, n);	// Res *= i
 	minusHalfIP(posRes, decRes);		// Res -= 0.5
 	multIP(posRes, decRes, true, scale);// Res *= scale
@@ -589,7 +586,7 @@ __global__ void testKernel(uint32_t* res, bool* posCx, uint32_t* decCx, bool* po
 	copyBig(posX + ti, decX + ti*BIG_FLOAT_SIZE, posXinit[ti], decXinit + ti*BIG_FLOAT_SIZE);
 	copyBig(posY + ti, decY + ti*BIG_FLOAT_SIZE, posYinit[ti], decYinit + ti*BIG_FLOAT_SIZE);
 
-	computeMandel(res + WIDTH*j + i, nbIter,
+	computeMandel(res + WIDTH*j + i, nbIter + ti,
 		posXinit + ti, decXinit + ti*BIG_FLOAT_SIZE, posYinit + ti, decYinit + ti*BIG_FLOAT_SIZE, 
 		posX + ti, decX + ti*BIG_FLOAT_SIZE, posY + ti, decY + ti*BIG_FLOAT_SIZE, 
 		posTmp + ti, decTmp + ti*BIG_FLOAT_SIZE, posSq + ti, decSq + ti*BIG_FLOAT_SIZE);
@@ -701,7 +698,7 @@ int computeBigMandelGPU(Affichage* display, bool h_posCx, uint32_t* h_decCx, boo
 	ASSERT(cudaSuccess == cudaGetLastError(), "Kernel launch failed", -1);
 	ASSERT(cudaSuccess == cudaDeviceSynchronize(), "Kernel synchronization failed", -1);
 
-	ASSERT(cudaSuccess == cudaMemcpy(display->pixels, d_res, WIDTH * HEIGHT * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of decC from device to host failed", -1);
+	ASSERT(cudaSuccess == cudaMemcpy(display->pixels, d_res, WIDTH * HEIGHT * sizeof(uint32_t), cudaMemcpyDeviceToHost), "Copy of pixels from device to host failed", -1);
 
 	ASSERT(cudaSuccess == cudaFree(d_res), "Device deallocation failed", -1);
 	ASSERT(cudaSuccess == cudaFree(d_decCx), "Device deallocation failed", -1);
