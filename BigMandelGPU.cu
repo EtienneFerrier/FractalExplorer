@@ -483,10 +483,7 @@ __device__ bool testSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 	multIP(posY, decY, *posY, decY); // Y *= Y
 	addIP(posX, decX, *posY, decY); // X^2 += Y^2
 
-	if (decX[0] < 4)
-		res = true;
-	else
-		res = false;
+	res = (decX[0] < 4);
 
 	__syncthreads();
 
@@ -506,6 +503,8 @@ __device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32
 {
 	const unsigned int k = blockDim.z * blockIdx.z + threadIdx.z;
 
+	bool continuer = true; // TODO : enlever le test
+
 	if (k == 0)
 		*nbIter = 0;
 
@@ -524,7 +523,7 @@ __device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32
 	}*/
 	for (int x = 0; x < NB_ITERATIONS; x++)
 	{
-		if (testSquare(posX, decX, posY, decY))
+		if (continuer)
 		{
 			complexSquare(posX, decX, posY, decY, posTmp, decTmp, posSq, decSq);
 			addIP(posX, decX, *posXinit, decXinit);
@@ -532,6 +531,8 @@ __device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32
 
 			if (k == 0)
 				*nbIter = *nbIter + 1;
+
+			continuer = testSquare(posX, decX, posY, decY);
 		}
 
 		__syncthreads();

@@ -5,8 +5,8 @@ Il est normalement inclus dans tous les fichiers du projet
 
 #pragma once
 
-#define WIDTH 512					// Largeur de la fenetre
-#define HEIGHT 512					// Hauteur de la fenetre
+#define WIDTH 256					// Largeur de la fenetre
+#define HEIGHT 256					// Hauteur de la fenetre
 #define ZOOM_FACTOR 0.5f			// Facteur de zoom (par clic)
 #define DEZOOM_FACTOR 0.95f			// Facteur de dezoom (typiquement identique au facteur de zoom)
 #define NB_ITERATIONS 300			// Nombre d’itérations maximal
