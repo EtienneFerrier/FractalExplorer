@@ -5,11 +5,11 @@ Il est normalement inclus dans tous les fichiers du projet
 
 #pragma once
 
-#define WIDTH 256					// Largeur de la fenetre
-#define HEIGHT 256					// Hauteur de la fenetre
+#define WIDTH 512					// Largeur de la fenetre
+#define HEIGHT 512					// Hauteur de la fenetre
 #define ZOOM_FACTOR 0.5f			// Facteur de zoom (par clic)
 #define DEZOOM_FACTOR 0.95f			// Facteur de dezoom (typiquement identique au facteur de zoom)
-#define NB_ITERATIONS 250			// Nombre d’itérations maximal
+#define NB_ITERATIONS 300			// Nombre d’itérations maximal
 #define GPU 1						// 1 if using GPU, 0 if using CPU
 #define BIG_FLOAT_SIZE 10			// Le nombre de bits sur lesquels on code un grand flottant, 0 pour utiliser les floats normaux
 #define INTERACTIVE 1				// Booléen décidant si le zoom est fixé ou interactif

@@ -466,7 +466,7 @@ __device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* 
 
 }
 
-// Realise le test X^2 + Y^2 < 4 en place.
+// Realise le test X^2 + Y^2 < 4.
 // Ne modifie pas les valeurs de X et Y.
 __device__ bool testSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY)
 {
@@ -550,7 +550,12 @@ __device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32
 // TODO : voir si passer k en parametre dans toutes les fonctions optimise.
 __device__ void loadStart(int n, bool posC, uint32_t* decC, uint32_t* scale, bool* posRes, uint32_t* decRes)
 {
-	getStep256(posRes, decRes);			// Res = 1/512
+	#if WIDTH == 256
+		getStep256(posRes, decRes);		// Res = 1/256
+	#elif WIDTH == 512
+		getStep512(posRes, decRes);		// Res = 1/512
+	#endif
+	
 	multIntIP(posRes, decRes, true, n);	// Res *= i
 	minusHalfIP(posRes, decRes);		// Res -= 0.5
 	multIP(posRes, decRes, true, scale);// Res *= scale
