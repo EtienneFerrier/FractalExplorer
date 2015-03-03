@@ -447,8 +447,9 @@ __device__ void copyBig(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
 
 // X = X*X - Y*Y
 // Y = 2*X*Y
-__device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp, bool* posSq, uint32_t* decSq)
+__device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp)
 {
+	/*============= ANCIENNE METHODE (2 valeurs temporaires) ===============*/
 	//// tmp = 2*X*Y
 	//copyBig(posTmp, decTmp, *posX, decX);	// tmp = X
 	//multIP(posTmp, decTmp, *posY, decY);	// tmp *= Y
@@ -465,7 +466,7 @@ __device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* 
 	//// Y = tmp
 	//copyBig(posY, decY, *posTmp, decTmp);
 
-																// Suivi des resultats intermediaires
+	/*============= NOUVELLE METHODE ===============*/			// Suivi des resultats intermediaires
 	copyBig(posTmp, decTmp, *posX, decX);	// tmp = X			// tmp = x			
 	addIP(posX, decX, *posY, decY);			// X += Y			// X = x + y
 	negate(posX);							// neg(X)			// X = -(x + y)
@@ -511,7 +512,7 @@ __device__ bool testSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 }
 
 // Boucle d'iteration principale
-__device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32_t* decXinit, bool* posYinit, uint32_t* decYinit, bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp, bool* posSq, uint32_t* decSq)
+__device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32_t* decXinit, bool* posYinit, uint32_t* decYinit, bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp)
 {
 	const unsigned int k = blockDim.z * blockIdx.z + threadIdx.z;
 
@@ -537,7 +538,7 @@ __device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32
 	{
 		if (continuer)
 		{
-			complexSquare(posX, decX, posY, decY, posTmp, decTmp, posSq, decSq);
+			complexSquare(posX, decX, posY, decY, posTmp, decTmp);
 			addIP(posX, decX, *posXinit, decXinit);
 			addIP(posY, decY, *posYinit, decYinit);
 
@@ -576,7 +577,7 @@ __device__ void loadStart(int n, bool posC, uint32_t* decC, uint32_t* scale, boo
 }
 
 // Fonction principale
-__global__ void testKernel(uint32_t* res, bool* posCx, uint32_t* decCx, bool* posCy, uint32_t* decCy, uint32_t* decS)
+__global__ void mainKernel(uint32_t* res, bool* posCx, uint32_t* decCx, bool* posCy, uint32_t* decCy, uint32_t* decS)
 {
 	const unsigned int ti = threadIdx.x;
 	const unsigned int i = blockIdx.x*blockDim.x + ti;
@@ -587,14 +588,12 @@ __global__ void testKernel(uint32_t* res, bool* posCx, uint32_t* decCx, bool* po
 	__shared__ uint32_t decX[BLOCK_X * BIG_FLOAT_SIZE];
 	__shared__ uint32_t decY[BLOCK_X * BIG_FLOAT_SIZE];
 	__shared__ uint32_t decTmp[BLOCK_X * BIG_FLOAT_SIZE];
-	__shared__ uint32_t decSq[BLOCK_X * BIG_FLOAT_SIZE];
 
 	__shared__ bool posXinit[BLOCK_X];
 	__shared__ bool posYinit[BLOCK_X];
 	__shared__ bool posX[BLOCK_X];
 	__shared__ bool posY[BLOCK_X];
 	__shared__ bool posTmp[BLOCK_X];
-	__shared__ bool posSq[BLOCK_X];
 
 	__shared__ int nbIter[BLOCK_X];
 
@@ -607,7 +606,7 @@ __global__ void testKernel(uint32_t* res, bool* posCx, uint32_t* decCx, bool* po
 	computeMandel(res + WIDTH*j + i, nbIter + ti,
 		posXinit + ti, decXinit + ti*BIG_FLOAT_SIZE, posYinit + ti, decYinit + ti*BIG_FLOAT_SIZE, 
 		posX + ti, decX + ti*BIG_FLOAT_SIZE, posY + ti, decY + ti*BIG_FLOAT_SIZE, 
-		posTmp + ti, decTmp + ti*BIG_FLOAT_SIZE, posSq + ti, decSq + ti*BIG_FLOAT_SIZE);
+		posTmp + ti, decTmp + ti*BIG_FLOAT_SIZE);
 }
 
 // Affiche la fractale de Mandelbrot centree en 0
@@ -663,7 +662,7 @@ int computeBigMandelGPU(Affichage* display)
 
 	dim3 cudaBlockSize(BLOCK_X, BLOCK_Y, BIG_FLOAT_SIZE); // ATTENTION, 1024 threads max par block
 	dim3 cudaGridSize(WIDTH / BLOCK_X, HEIGHT / BLOCK_Y, 1); // ATTENTION : changer lorsque la grille n'est pas parfaitement adaptée a la fenetre
-	testKernel << <cudaGridSize, cudaBlockSize >> >(d_res, d_posCx, d_decCx, d_posCy, d_decCy, d_decS);
+	mainKernel << <cudaGridSize, cudaBlockSize >> >(d_res, d_posCx, d_decCx, d_posCy, d_decCy, d_decS);
 
 	ASSERT(cudaSuccess == cudaGetLastError(), "Kernel launch failed", -1);
 	ASSERT(cudaSuccess == cudaDeviceSynchronize(), "Kernel synchronization failed", -1);
@@ -711,7 +710,7 @@ int computeBigMandelGPU(Affichage* display, bool h_posCx, uint32_t* h_decCx, boo
 
 	dim3 cudaBlockSize(BLOCK_X, BLOCK_Y, BIG_FLOAT_SIZE); // ATTENTION, 1024 threads max par block
 	dim3 cudaGridSize(WIDTH / BLOCK_X, HEIGHT / BLOCK_Y, 1); // ATTENTION : changer lorsque la grille n'est pas parfaitement adaptée a la fenetre
-	testKernel << <cudaGridSize, cudaBlockSize >> >(d_res, d_posCx, d_decCx, d_posCy, d_decCy, d_decS);
+	mainKernel << <cudaGridSize, cudaBlockSize >> >(d_res, d_posCx, d_decCx, d_posCy, d_decCy, d_decS);
 
 	ASSERT(cudaSuccess == cudaGetLastError(), "Kernel launch failed", -1);
 	ASSERT(cudaSuccess == cudaDeviceSynchronize(), "Kernel synchronization failed", -1);
