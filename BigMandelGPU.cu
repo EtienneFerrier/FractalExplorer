@@ -265,6 +265,7 @@ __device__ void negate(bool* pos)
 }
 
 // A = A + B (In Place)
+// Remarque : A = A + A fonctionne
 __device__ void addIP(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
 {
 	const unsigned int k = blockIdx.z*blockDim.z + threadIdx.z;
@@ -448,21 +449,32 @@ __device__ void copyBig(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
 // Y = 2*X*Y
 __device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp, bool* posSq, uint32_t* decSq)
 {
-	// tmp = 2*X*Y
-	copyBig(posTmp, decTmp, *posX, decX);	// tmp = X
-	multIP(posTmp, decTmp, *posY, decY);	// tmp *= Y
-	multIntIP(posTmp, decTmp, true, 2);		// tmp *= 2
+	//// tmp = 2*X*Y
+	//copyBig(posTmp, decTmp, *posX, decX);	// tmp = X
+	//multIP(posTmp, decTmp, *posY, decY);	// tmp *= Y
+	//multIntIP(posTmp, decTmp, true, 2);		// tmp *= 2
 
-	// X = X*X - Y*Y
-	// Sq = - Y * Y
-	multIP(posX, decX, *posX, decX);		// X *= X
-	copyBig(posSq, decSq, *posY, decY);		// Sq = Y
-	multIP(posSq, decSq, *posY, decY);		// Sq *= Y
-	negate(posSq);							// neg(Sq)
-	addIP(posX, decX, *posSq, decSq);		// X += Sq
+	//// X = X*X - Y*Y
+	//// Sq = - Y * Y
+	//multIP(posX, decX, *posX, decX);		// X *= X
+	//copyBig(posSq, decSq, *posY, decY);		// Sq = Y
+	//multIP(posSq, decSq, *posY, decY);		// Sq *= Y
+	//negate(posSq);							// neg(Sq)
+	//addIP(posX, decX, *posSq, decSq);		// X += Sq
 
-	// Y = tmp
-	copyBig(posY, decY, *posTmp, decTmp);
+	//// Y = tmp
+	//copyBig(posY, decY, *posTmp, decTmp);
+
+																// Suivi des resultats intermediaires
+	copyBig(posTmp, decTmp, *posX, decX);	// tmp = X			// tmp = x			
+	addIP(posX, decX, *posY, decY);			// X += Y			// X = x + y
+	negate(posX);							// neg(X)			// X = -(x + y)
+	addIP(posY, decY, *posY, decY);			// Y += Y			// Y = 2y
+	addIP(posY, decY, *posX, decX);			// Y += X			// Y = y - x
+	multIP(posX, decX, *posY, decY);		// X *= Y			// X = x^2 - y^2
+	addIP(posY, decY, *posTmp, decTmp);		// Y += tmp			// Y = y
+	multIP(posY, decY, *posTmp, decTmp);	// Y *= tmp			// Y = xy
+	addIP(posY, decY, *posY, decY);			// Y += Y			// Y = 2xy
 
 }
 
