@@ -4,12 +4,15 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur GPU.
 
 #pragma once
 
+#include "Parametres.hpp"
+#if GPU
+#if BIG_FLOAT_SIZE == 0
+
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
 #include <SDL2/SDL.h>
 
-#include "Parametres.hpp"
 #include "Affichage.hpp"
 
 
@@ -106,7 +109,8 @@ int affichageGPU(Affichage* disp)
 
 	ASSERT(cudaSuccess == cudaFree(pixels_result), "Device deallocation failed", -1);
 
-	disp->dessin();
-
 	return EXIT_SUCCESS;
 }
+
+#endif
+#endif
