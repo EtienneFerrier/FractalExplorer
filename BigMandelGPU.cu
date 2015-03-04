@@ -394,7 +394,7 @@ __device__ void multIP(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
 	__syncthreads();
 }
 
-// A = factor * A
+// A = (int)factor * A
 __device__ void multIntIP(bool* posA, uint32_t* decA, bool posFactor, uint32_t factor)
 {
 	const unsigned int k = blockIdx.z*blockDim.z + threadIdx.z;
@@ -449,24 +449,21 @@ __device__ void copyBig(bool* posA, uint32_t* decA, bool posB, uint32_t* decB)
 // Y = 2*X*Y
 __device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp)
 {
-	/*============= ANCIENNE METHODE (2 valeurs temporaires) ===============*/
-	//// tmp = 2*X*Y
-	//copyBig(posTmp, decTmp, *posX, decX);	// tmp = X
-	//multIP(posTmp, decTmp, *posY, decY);	// tmp *= Y
-	//multIntIP(posTmp, decTmp, true, 2);		// tmp *= 2
+	/* ANCIENNE METHODE (2 valeurs temporaires) */
 
-	//// X = X*X - Y*Y
-	//// Sq = - Y * Y
-	//multIP(posX, decX, *posX, decX);		// X *= X
+	//copyBig(posTmp, decTmp, *posX, decX);		// tmp = X
+	//multIP(posTmp, decTmp, *posY, decY);		// tmp *= Y
+	//multIntIP(posTmp, decTmp, true, 2);		// tmp *= 2 	//// tmp = 2*X*Y
+	
+	//multIP(posX, decX, *posX, decX);			// X *= X
 	//copyBig(posSq, decSq, *posY, decY);		// Sq = Y
-	//multIP(posSq, decSq, *posY, decY);		// Sq *= Y
+	//multIP(posSq, decSq, *posY, decY);		// Sq *= Y 		//// Sq = - Y * Y
 	//negate(posSq);							// neg(Sq)
-	//addIP(posX, decX, *posSq, decSq);		// X += Sq
+	//addIP(posX, decX, *posSq, decSq);			// X += Sq		//// X = X*X - Y*Y
 
-	//// Y = tmp
-	//copyBig(posY, decY, *posTmp, decTmp);
+	//copyBig(posY, decY, *posTmp, decTmp);		// Y = Tmp		//// Y = 2*X*Y
 
-	/*============= NOUVELLE METHODE ===============*/			// Suivi des resultats intermediaires
+	/* NOUVELLE METHODE (1 seule valeur temporaire) */			// Suivi des resultats intermediaires
 	copyBig(posTmp, decTmp, *posX, decX);	// tmp = X			// tmp = x			
 	addIP(posX, decX, *posY, decY);			// X += Y			// X = x + y
 	negate(posX);							// neg(X)			// X = -(x + y)
@@ -484,7 +481,8 @@ __device__ void complexSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* 
 __device__ bool testSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* decY)
 {
 	const unsigned int k = blockIdx.z*blockDim.z + threadIdx.z;
-
+	
+	// Sauvegarde de X et Y en registre
 	uint32_t recDecX = decX[k];
 	uint32_t recDecY = decY[k];
 	bool recPosX = *posX;
@@ -492,14 +490,15 @@ __device__ bool testSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 	
 	bool res;
 
-	multIP(posX, decX, *posX, decX); // X *= X
-	multIP(posY, decY, *posY, decY); // Y *= Y
-	addIP(posX, decX, *posY, decY); // X^2 += Y^2
+	multIP(posX, decX, *posX, decX);	// X *= X
+	multIP(posY, decY, *posY, decY);	// Y *= Y
+	addIP(posX, decX, *posY, decY);		// X^2 += Y^2
 
 	res = (decX[0] < 4);
 
 	__syncthreads();
 
+	// Rechargement de X et de Y
 	*posX = recPosX;
 	*posY = recPosY;
 
@@ -512,28 +511,18 @@ __device__ bool testSquare(bool* posX, uint32_t* decX, bool* posY, uint32_t* dec
 }
 
 // Boucle d'iteration principale
-__device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32_t* decXinit, bool* posYinit, uint32_t* decYinit, bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp)
+__device__ void computeMandel(uint32_t* res, bool* posXinit, uint32_t* decXinit, bool* posYinit, uint32_t* decYinit, bool* posX, uint32_t* decX, bool* posY, uint32_t* decY, bool* posTmp, uint32_t* decTmp)
 {
 	const unsigned int k = blockDim.z * blockIdx.z + threadIdx.z;
+	int nbIter;
 
-	bool continuer = true; // TODO : enlever le test
-
+	bool continuer = true;
+		
 	if (k == 0)
-		*nbIter = 0;
+		nbIter = 0;
 
 	__syncthreads();
 	
-	/*while (testSquare(posX, decX, posY, decY) && nbIter[ti] < NB_ITERATIONS)
-	{
-		complexSquare(posX, decX, posY, decY, posTmp, decTmp, posSq, decSq);
-		addIP(posX, decX, *posXinit, decXinit);
-		addIP(posY, decY, *posYinit, decYinit);
-
-		if (k == 0)
-			nbIter[ti] ++;
-
-		__syncthreads();
-	}*/
 	for (int x = 0; x < NB_ITERATIONS; x++)
 	{
 		if (continuer)
@@ -543,7 +532,7 @@ __device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32
 			addIP(posY, decY, *posYinit, decYinit);
 
 			if (k == 0)
-				*nbIter = *nbIter + 1;
+				nbIter++;
 
 			continuer = testSquare(posX, decX, posY, decY);
 		}
@@ -552,7 +541,7 @@ __device__ void computeMandel(uint32_t* res, int* nbIter, bool* posXinit, uint32
 	}
 
 	if (k == 0)
-		*res = computeColor_32_DARK(NB_ITERATIONS, *nbIter, 1);
+		*res = computeColor_32_DARK(NB_ITERATIONS, nbIter, 1);
 
 	__syncthreads();
 }
@@ -595,15 +584,13 @@ __global__ void mainKernel(uint32_t* res, bool* posCx, uint32_t* decCx, bool* po
 	__shared__ bool posY[BLOCK_X];
 	__shared__ bool posTmp[BLOCK_X];
 
-	__shared__ int nbIter[BLOCK_X];
-
 	loadStart(i, *posCx, decCx, decS, posXinit + ti, decXinit + ti*BIG_FLOAT_SIZE);
 	loadStart(j, *posCy, decCy, decS, posYinit + ti, decYinit + ti*BIG_FLOAT_SIZE);
 
 	copyBig(posX + ti, decX + ti*BIG_FLOAT_SIZE, posXinit[ti], decXinit + ti*BIG_FLOAT_SIZE);
 	copyBig(posY + ti, decY + ti*BIG_FLOAT_SIZE, posYinit[ti], decYinit + ti*BIG_FLOAT_SIZE);
 
-	computeMandel(res + WIDTH*j + i, nbIter + ti,
+	computeMandel(res + WIDTH*j + i,
 		posXinit + ti, decXinit + ti*BIG_FLOAT_SIZE, posYinit + ti, decYinit + ti*BIG_FLOAT_SIZE, 
 		posX + ti, decX + ti*BIG_FLOAT_SIZE, posY + ti, decY + ti*BIG_FLOAT_SIZE, 
 		posTmp + ti, decTmp + ti*BIG_FLOAT_SIZE);
