@@ -23,6 +23,8 @@ using namespace std;
 int affichageGPU(Affichage* disp);
 int computeBigMandelGPU(Affichage* disp);
 int computeBigMandelGPU(Affichage* disp, bool h_posCx, uint32_t* h_decCx, bool h_posCy, uint32_t* h_decCy, uint32_t* h_decS);
+void computeMandel(Uint32* result, Complexe& center, float scale);
+void computeBigMandel(Uint32* result, BigFloat2& xCenter, BigFloat2& yCenter, BigFloat2& scale);
 
 class Events{
 public:
@@ -38,7 +40,8 @@ public:
 
 		if (GPU && BIG_FLOAT_SIZE == 0)
 		{
-			affichageGPU(disp);		
+			affichageGPU(disp);	
+			disp->dessin();
 		}
 		else if (GPU)
 		{
@@ -49,7 +52,7 @@ public:
 		}
 		else
 			if (BIG_FLOAT_SIZE == 0)
-				Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
+				computeMandel(disp->pixels, disp->center, disp->scale);
 			else {
 				if (INTERACTIVE) {
 					BigFloat2 xCenter(0);
@@ -59,7 +62,7 @@ public:
 					Events::yCenter = new BigFloat2(true, 0, 121012162, 3888660452, 0);
 					Events::xCenter = new BigFloat2(false, 1, 3178543730, 764955228, 0);
 				}
-				BigMandel::computeMandel(disp->pixels, *xCenter, *yCenter, *bigScale);
+				computeBigMandel(disp->pixels, *xCenter, *yCenter, *bigScale);
 			}
 
 			disp->end = chrono::system_clock::now();
@@ -126,9 +129,9 @@ public:
 			computeBigMandelGPU(disp, xCenter->pos, xCenter->decimals, yCenter->pos, yCenter->decimals, bigScale->decimals);
 		else
 			if (BIG_FLOAT_SIZE == 0)
-				Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
+				computeMandel(disp->pixels, disp->center, disp->scale);
 			else {
-				BigMandel::computeMandel(disp->pixels, *xCenter, *yCenter, *bigScale);
+				computeBigMandel(disp->pixels, *xCenter, *yCenter, *bigScale);
 			}
 
 		disp->end = chrono::system_clock::now();
@@ -158,7 +161,7 @@ public:
 		else if (GPU)
 			computeBigMandelGPU(disp, xCenter->pos, xCenter->decimals, yCenter->pos, yCenter->decimals, bigScale->decimals);
 		else
-			Mandelbrot::computeMandel(disp->pixels, disp->center, disp->scale);
+			computeMandel(disp->pixels, disp->center, disp->scale);
 		disp->end = chrono::system_clock::now();
 		disp->duration = disp->end - disp->start;
 		cout << "Frame computing time : " << disp->duration.count() << endl;
