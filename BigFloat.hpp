@@ -75,7 +75,7 @@ public:
 
 	// Directement des chiffres
 	// Exemple : BigFloat(false, 1, 3178543730, 764955228, 0)
-	BigFloat(int32_t pos, uint32_t b, uint32_t c, uint32_t d, uint32_t e) {
+	BigFloat(bool pos, uint32_t b, uint32_t c, uint32_t d, uint32_t e) {
 		decimals = new uint32_t[BIG_FLOAT_SIZE];
 		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
 			decimals[i] = 0;
@@ -87,7 +87,7 @@ public:
 			decimals[2] = d;
 		if (e != 0)
 			decimals[3] = e;
-		this->pos = (bool)pos;
+		this->pos = pos;
 	}
 
 
@@ -140,8 +140,10 @@ public:
 				for (int i = BIG_FLOAT_SIZE - 1; i >= 0; i--) {
 					res[i] = a[i] - carry;
 					bool nextCarry = (a[i] + 1 == 0 && carry);
-					res[i] -= b[i];
+					res[i] -= b[i]; 
+#pragma warning(disable:4146)
 					carry = nextCarry || ((res[i] >= -b[i]) && (b[i] != 0));
+#pragma warning(default:4146)
 				}
 				res.pos =  a.pos;
 			} 
@@ -150,7 +152,9 @@ public:
 					res[i] = b[i] - carry;
 					bool nextCarry = (b[i] + 1 == 0 && carry);
 					res[i] -= a[i];
+#pragma warning(disable:4146)
 					carry = nextCarry || ((res[i] >= -a[i]) && (a[i] != 0));
+#pragma warning(default:4146)
 				}
 				res.pos = b.pos;
 			}
