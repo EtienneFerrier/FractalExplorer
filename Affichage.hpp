@@ -103,7 +103,7 @@ public:
 	void majTitre()
 	{
 		ss = stringstream();
-		ss << "Centered in (" << center.x << ", " << center.y << "). Width : " << scale;
+		ss << "Scale : " << scale;
 		SDL_SetWindowTitle(win, ss.str().c_str());
 	}
 
