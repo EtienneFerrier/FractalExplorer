@@ -45,7 +45,7 @@ public:
 			d = -d;
 		uint64_t base = 0x100000000;
 		for (int i = 0; i < BIG_FLOAT_SIZE; i++) {
-			decimals[i] = floor(d);
+			decimals[i] = (uint32_t)floor(d);
 			d -= decimals[i];
 			d *= base;
 		}
@@ -87,7 +87,7 @@ public:
 			decimals[2] = d;
 		if (e != 0)
 			decimals[3] = e;
-		this->pos = pos;
+		this->pos = (bool)pos;
 	}
 
 
