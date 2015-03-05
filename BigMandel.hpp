@@ -11,7 +11,7 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur CPU sur des fl
 #include <SDL2/SDL.h>
 #include "Complexe.hpp"
 #include <iostream>
-#include "BigFloat2.hpp"
+#include "BigFloat.hpp"
 
 
 // Fractale de Mandelbrot couleur 32bits version sombre
@@ -25,22 +25,22 @@ Cette classe implémente le calcul de l'ensemble de Mandelbrot sur CPU sur des fl
 
 
 
-BigFloat2 *xStart = new BigFloat2();
-BigFloat2 *yStart = new BigFloat2();
-BigFloat2 *x = new BigFloat2();
-BigFloat2 *y = new BigFloat2();
-BigFloat2 *xx = new BigFloat2();
-BigFloat2 *yy = new BigFloat2();
-BigFloat2 *temp = new BigFloat2();
-BigFloat2 *temp2 = new BigFloat2();
+BigFloat *xStart = new BigFloat();
+BigFloat *yStart = new BigFloat();
+BigFloat *x = new BigFloat();
+BigFloat *y = new BigFloat();
+BigFloat *xx = new BigFloat();
+BigFloat *yy = new BigFloat();
+BigFloat *temp = new BigFloat();
+BigFloat *temp2 = new BigFloat();
 
 void initializePointers() {
-	x = new BigFloat2();
-	y = new BigFloat2();
-	xx = new BigFloat2();
-	yy = new BigFloat2();
-	temp = new BigFloat2();
-	temp2 = new BigFloat2();
+	x = new BigFloat();
+	y = new BigFloat();
+	xx = new BigFloat();
+	yy = new BigFloat();
+	temp = new BigFloat();
+	temp2 = new BigFloat();
 }
 
 // Convertit RGB en Uint32
@@ -86,7 +86,7 @@ Uint32 computeColor_32_CLASSIC(int countMax, int count, int divFactor)
 }
 
 // Itère la fonction génératrice sur un point
-int iteratePoint(/*BigFloat2& xStart, BigFloat2& yStart,*/ int& nbIterations) {
+int iteratePoint(/*BigFloat& xStart, BigFloat& yStart,*/ int& nbIterations) {
 	int count = 0;
 	x->reset();
 	y->reset();
@@ -96,26 +96,26 @@ int iteratePoint(/*BigFloat2& xStart, BigFloat2& yStart,*/ int& nbIterations) {
 	while (count < nbIterations && temp->decimals[0] < 4.)
 	{
 		temp->reset();
-		BigFloat2::mult(*x, *y, *temp);
+		BigFloat::mult(*x, *y, *temp);
 		// x’ = xx - yy
-		BigFloat2::negate(*yy);
-		BigFloat2::add(*xx, *yy, *x);
+		BigFloat::negate(*yy);
+		BigFloat::add(*xx, *yy, *x);
 		// y’ = 2xy
-		BigFloat2::add(*temp, *temp, *y);
+		BigFloat::add(*temp, *temp, *y);
 		// x’ = x + xStart
 		temp2->copy(*x);
-		BigFloat2::add(*xStart, *temp2, *x);
+		BigFloat::add(*xStart, *temp2, *x);
 		// y’ = y + yStart
 		temp2->copy(*y);
-		BigFloat2::add(*yStart, *temp2, *y);
+		BigFloat::add(*yStart, *temp2, *y);
 		//xx = x * x
 		xx->reset();
-		BigFloat2::mult(*x, *x, *xx);
+		BigFloat::mult(*x, *x, *xx);
 		//xx = y * y
 		yy->reset();
-		BigFloat2::mult(*y, *y, *yy);
+		BigFloat::mult(*y, *y, *yy);
 		//temp = xx + yy
-		BigFloat2::add(*xx, *yy, *temp);
+		BigFloat::add(*xx, *yy, *temp);
 
 		count++;
 			
@@ -125,7 +125,7 @@ int iteratePoint(/*BigFloat2& xStart, BigFloat2& yStart,*/ int& nbIterations) {
 
 
 // Calcule la couleur d'un point de l'ensemble de Mandelbrot en fonction d'une méthode de coloration et d'un nombre d'itérations.
-Uint32 computeColor(/*BigFloat2& xStart, BigFloat2& yStart,*/ int methode, int nbIterations)
+Uint32 computeColor(/*BigFloat& xStart, BigFloat& yStart,*/ int methode, int nbIterations)
 {
 	int count;
 	switch (methode)
@@ -143,7 +143,7 @@ Uint32 computeColor(/*BigFloat2& xStart, BigFloat2& yStart,*/ int methode, int n
 
 // Methode de test.
 // Calcule l'ensemble de Mandelbrot sur le carre [-2, 2]x[-2, 2] avec une coloration N&B (10 itérations).
-void computeBigMandel(Uint32* result, BigFloat2& xCenter, BigFloat2& yCenter, BigFloat2& scale)
+void computeBigMandel(Uint32* result, BigFloat& xCenter, BigFloat& yCenter, BigFloat& scale)
 {
 	for (int i = 0; i < WIDTH; i++)
 		for (int j = 0; j < HEIGHT; j++)
@@ -151,12 +151,12 @@ void computeBigMandel(Uint32* result, BigFloat2& xCenter, BigFloat2& yCenter, Bi
 			xStart->reset();
 			yStart->reset();
 			temp->reset();
-			BigFloat2::mult((-0.5f + (float)i / WIDTH), scale, *xStart);
-			BigFloat2::mult((-0.5f + (float)j / HEIGHT)*(HEIGHT / ((float)WIDTH)), scale, *yStart);
+			BigFloat::mult((-0.5f + (float)i / WIDTH), scale, *xStart);
+			BigFloat::mult((-0.5f + (float)j / HEIGHT)*(HEIGHT / ((float)WIDTH)), scale, *yStart);
 			temp->copy(*xStart);
-			BigFloat2::add(xCenter, *temp, *xStart);
+			BigFloat::add(xCenter, *temp, *xStart);
 			temp->copy(*yStart);
-			BigFloat2::add(yCenter, *temp, *yStart);
+			BigFloat::add(yCenter, *temp, *yStart);
 			result[j*WIDTH + i] =
 				computeColor(MANDEL_32_DARK, NB_ITERATIONS);
 		}

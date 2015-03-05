@@ -8,11 +8,10 @@
 #include <SDL2/SDL.h>
 
 #include "Parametres.hpp"
-#include "Pixel.hpp"
 #include "Mandel.hpp"
 #include "Events.hpp"
 #include "Affichage.hpp"
-#include "BigFloat2.hpp"
+#include "BigFloat.hpp"
 
 using namespace std;
 

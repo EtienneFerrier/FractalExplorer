@@ -17,20 +17,20 @@
 
 
 
-class BigFloat2 {
+class BigFloat {
 
 public:
 	uint32_t* decimals; // Chiffres en base 32
 	bool pos; // Vrai si positif, faux si négatif
 
-	BigFloat2() {
+	BigFloat() {
 		decimals = new uint32_t[BIG_FLOAT_SIZE];
 		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
 			decimals[i] = 0;
 		pos = 1;
 	}
 
-	BigFloat2(int k, uint32_t digit) {
+	BigFloat(int k, uint32_t digit) {
 		decimals = new uint32_t[BIG_FLOAT_SIZE];
 		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
 			decimals[i] = 0;
@@ -38,7 +38,7 @@ public:
 		decimals[k] = digit;
 	}
 
-	BigFloat2(double d) {
+	BigFloat(double d) {
 		decimals = new uint32_t[BIG_FLOAT_SIZE];
 		pos = d>=0;
 		if (!pos)
@@ -54,28 +54,28 @@ public:
 	// Prends des paquets de quatre chiffres
 	// Exemple :  BigFloat(true, 0, 3750, 0012, 0061, 8655, 0)
 	// Ne fonctionne pas très bien àcause des arrondis du log
-	BigFloat2(bool pos, float b, float c, float d, float e, float f, float g) {
+	BigFloat(bool pos, float b, float c, float d, float e, float f, float g) {
 		decimals = new uint32_t[BIG_FLOAT_SIZE];
 		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
 			decimals[i] = 0;
 		this->pos = pos;
-		BigFloat2 bBig(b);
+		BigFloat bBig(b);
 		mult(1, bBig, *this);
-		BigFloat2 cBig(c);
+		BigFloat cBig(c);
 		mult(1e-4f, cBig, *this);
-		BigFloat2 dBig(d);
+		BigFloat dBig(d);
 		mult(1e-8f, dBig, *this);
-		BigFloat2 eBig(e);
+		BigFloat eBig(e);
 		mult(1e-12f, eBig, *this);
-		BigFloat2 fBig(f);
+		BigFloat fBig(f);
 		mult(1e-16f, fBig, *this);
-		BigFloat2 gBig(g);
+		BigFloat gBig(g);
 		mult(1e-20f, gBig, *this);
 	}
 
 	// Directement des chiffres
-	// Exemple : BigFloat2(false, 1, 3178543730, 764955228, 0)
-	BigFloat2(int32_t pos, uint32_t b, uint32_t c, uint32_t d, uint32_t e) {
+	// Exemple : BigFloat(false, 1, 3178543730, 764955228, 0)
+	BigFloat(int32_t pos, uint32_t b, uint32_t c, uint32_t d, uint32_t e) {
 		decimals = new uint32_t[BIG_FLOAT_SIZE];
 		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
 			decimals[i] = 0;
@@ -91,14 +91,14 @@ public:
 	}
 
 
-	BigFloat2(BigFloat2& a) {
+	BigFloat(BigFloat& a) {
 		decimals = new uint32_t[BIG_FLOAT_SIZE];
 		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
 			decimals[i] = a[i];
 		pos = a.pos;
 	}
 
-	~BigFloat2() {
+	~BigFloat() {
 		delete[] decimals;
 	}
 
@@ -108,7 +108,7 @@ public:
 		pos = true;
 	}
 
-	void copy(BigFloat2 a) {
+	void copy(BigFloat a) {
 		for (int i = 0; i < BIG_FLOAT_SIZE; i++)
 			decimals[i] = a.decimals[i];
 		pos = a.pos;
@@ -120,7 +120,7 @@ public:
 	}
 
 	// Remplis res avec a+b, res n’a pas besoin d’être initialisé
-	static void add(BigFloat2& a, BigFloat2& b, BigFloat2& res) {
+	static void add(BigFloat& a, BigFloat& b, BigFloat& res) {
 		bool carry = 0;
 
 		if (a.pos == b.pos) {
@@ -158,8 +158,8 @@ public:
 	}
 
 
-	// Négation inplace d’un BigFloat2
-	static void negate(BigFloat2& a) {
+	// Négation inplace d’un BigFloat
+	static void negate(BigFloat& a) {
 		a.pos = !a.pos;
 	}
 
@@ -222,7 +222,7 @@ public:
 
 	// Multiplication de a par un chiffre de b, résultat ajouté à temp,
 	// temp doit être initialisé au préalable.
-	static void multDigit(BigFloat2& a, BigFloat2& b, int i, BigFloat2& temp) {
+	static void multDigit(BigFloat& a, BigFloat& b, int i, BigFloat& temp) {
 		bool carry;
 
 		// Il faut traiter le chiffre de plus basse importance séparément
@@ -237,20 +237,20 @@ public:
 	}
 
 
-	// Multiplication de deux BigFloat2.
+	// Multiplication de deux BigFloat.
 	// Multiplie b par chaque chiffre de a, ajoute les résultats successifs à res.
 	// res doit être initialisé.
-	static void mult(BigFloat2& a, BigFloat2& b, BigFloat2& res) {
+	static void mult(BigFloat& a, BigFloat& b, BigFloat& res) {
 		for (int i = BIG_FLOAT_SIZE - 1; i >= 0; i--)
 			multDigit(a, b, i, res);
 		res.pos = (a.pos == b.pos);
 	}
 
-	// Multiplication d’un BigFloat2 par un float.
+	// Multiplication d’un BigFloat par un float.
 	// (utilisé pour les points de départ)
-	// (peut être amélioré en évitant de repasser par un BigFloat2)
-	static void mult(float a, BigFloat2& b, BigFloat2& res) {
-		BigFloat2 aBig(a);
+	// (peut être amélioré en évitant de repasser par un BigFloat)
+	static void mult(float a, BigFloat& b, BigFloat& res) {
+		BigFloat aBig(a);
 		mult(aBig, b, res);
 	}
 

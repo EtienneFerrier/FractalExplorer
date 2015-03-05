@@ -14,7 +14,7 @@ Elle fait l'interface entre la boucle d'evenements et les methodes de calcul et 
 #include "Parametres.hpp"
 #include "Mandel.hpp"
 #include "Affichage.hpp"
-#include "BigFloat2.hpp"
+#include "BigFloat.hpp"
 #include "BigMandel.hpp"
 
 using namespace std;
@@ -24,16 +24,16 @@ int affichageGPU(Affichage* disp);
 int computeBigMandelGPU(Affichage* disp);
 int computeBigMandelGPU(Affichage* disp, bool h_posCx, uint32_t* h_decCx, bool h_posCy, uint32_t* h_decCy, uint32_t* h_decS);
 void computeMandel(Uint32* result, Complexe& center, float scale);
-void computeBigMandel(Uint32* result, BigFloat2& xCenter, BigFloat2& yCenter, BigFloat2& scale);
+void computeBigMandel(Uint32* result, BigFloat& xCenter, BigFloat& yCenter, BigFloat& scale);
 
 class Events{
 public:
-	static BigFloat2* bigScale;
-	static BigFloat2* xCenter;
-	static BigFloat2* yCenter;
+	static BigFloat* bigScale;
+	static BigFloat* xCenter;
+	static BigFloat* yCenter;
 	
 	static void initialDisplay(Affichage* disp) {
-		bigScale = new BigFloat2(disp->scale);
+		bigScale = new BigFloat(disp->scale);
 
 		//Nouveau calcul de la fractale avec chrono
 		disp->start = chrono::system_clock::now();
@@ -45,8 +45,8 @@ public:
 		}
 		else if (GPU)
 		{
-			Events::yCenter = new BigFloat2();
-			Events::xCenter = new BigFloat2();
+			Events::yCenter = new BigFloat();
+			Events::xCenter = new BigFloat();
 			//computeBigMandelGPU(disp);
 			computeBigMandelGPU(disp, xCenter->pos, xCenter->decimals, yCenter->pos, yCenter->decimals, bigScale->decimals);
 		}
@@ -55,12 +55,12 @@ public:
 				computeMandel(disp->pixels, disp->center, disp->scale);
 			else {
 				if (INTERACTIVE) {
-					BigFloat2 xCenter(0);
-					BigFloat2 yCenter(0);
+					BigFloat xCenter(0);
+					BigFloat yCenter(0);
 				}
 				else {
-					Events::yCenter = new BigFloat2(true, 0, 121012162, 3888660452, 0);
-					Events::xCenter = new BigFloat2(false, 1, 3178543730, 764955228, 0);
+					Events::yCenter = new BigFloat(true, 0, 121012162, 3888660452, 0);
+					Events::xCenter = new BigFloat(false, 1, 3178543730, 764955228, 0);
 				}
 				computeBigMandel(disp->pixels, *xCenter, *yCenter, *bigScale);
 			}
@@ -74,36 +74,36 @@ public:
 	}
 
 	static void updateBigCenter(SDL_Event& event, bool zoom) {
-		BigFloat2 temp, temp2; 
-		BigFloat2::mult(((float)event.motion.x) / WIDTH - 0.5f, *bigScale, temp2);
-		BigFloat2::add(*xCenter, temp2, temp);
+		BigFloat temp, temp2; 
+		BigFloat::mult(((float)event.motion.x) / WIDTH - 0.5f, *bigScale, temp2);
+		BigFloat::add(*xCenter, temp2, temp);
 		temp2.reset();
 		if (zoom)
-			BigFloat2::mult((1.f - ZOOM_FACTOR), temp, temp2);
+			BigFloat::mult((1.f - ZOOM_FACTOR), temp, temp2);
 		else
-			BigFloat2::mult((1.f - 1 / DEZOOM_FACTOR), temp, temp2);
+			BigFloat::mult((1.f - 1 / DEZOOM_FACTOR), temp, temp2);
 		temp.reset();
 		if (zoom)
-			BigFloat2::mult(ZOOM_FACTOR, *xCenter, temp);
+			BigFloat::mult(ZOOM_FACTOR, *xCenter, temp);
 		else
-			BigFloat2::mult(1 / DEZOOM_FACTOR, *xCenter, temp);
-		BigFloat2::add(temp2, temp, *xCenter);
+			BigFloat::mult(1 / DEZOOM_FACTOR, *xCenter, temp);
+		BigFloat::add(temp2, temp, *xCenter);
 
 		temp.reset();
 		temp2.reset();
-		BigFloat2::mult(((float)event.motion.y) / HEIGHT - 0.5f, *bigScale, temp2);
-		BigFloat2::add(*yCenter, temp2, temp);
+		BigFloat::mult(((float)event.motion.y) / HEIGHT - 0.5f, *bigScale, temp2);
+		BigFloat::add(*yCenter, temp2, temp);
 		temp2.reset();
 		if (zoom)
-			BigFloat2::mult((1.f - ZOOM_FACTOR), temp, temp2);
+			BigFloat::mult((1.f - ZOOM_FACTOR), temp, temp2);
 		else
-			BigFloat2::mult((1.f - 1 / DEZOOM_FACTOR), temp, temp2);
+			BigFloat::mult((1.f - 1 / DEZOOM_FACTOR), temp, temp2);
 		temp.reset();
 		if (zoom)
-			BigFloat2::mult(ZOOM_FACTOR, *yCenter, temp);
+			BigFloat::mult(ZOOM_FACTOR, *yCenter, temp);
 		else
-			BigFloat2::mult(1 / DEZOOM_FACTOR, *yCenter, temp);
-		BigFloat2::add(temp2, temp, *yCenter);
+			BigFloat::mult(1 / DEZOOM_FACTOR, *yCenter, temp);
+		BigFloat::add(temp2, temp, *yCenter);
 	}
 
 
@@ -125,12 +125,12 @@ public:
 
 		// MAJ de l'echelle
 		disp->scale *= ZOOM_FACTOR;
-		//BigFloat2 zoomFactor(true, 0, 0x80000000, 0, 0);
-		BigFloat2 temp, temp2;
-		BigFloat2::mult(ZOOM_FACTOR, *bigScale, temp);
+		//BigFloat zoomFactor(true, 0, 0x80000000, 0, 0);
+		BigFloat temp, temp2;
+		BigFloat::mult(ZOOM_FACTOR, *bigScale, temp);
 		bigScale->reset();
 		temp2.copy(*bigScale);
-		BigFloat2::add(temp, temp2, *bigScale);
+		BigFloat::add(temp, temp2, *bigScale);
 		
 		//Nouveau calcul de la fractale avec chrono
 		disp->start = chrono::system_clock::now();
@@ -172,12 +172,12 @@ public:
 
 		// MAJ de l'echelle
 		disp->scale *= DEZOOM_FACTOR;
-		//BigFloat2 zoomFactor(true, 0, 0x80000000, 0, 0);
-		BigFloat2 temp, temp2;
-		BigFloat2::mult(1/DEZOOM_FACTOR, *bigScale, temp);
+		//BigFloat zoomFactor(true, 0, 0x80000000, 0, 0);
+		BigFloat temp, temp2;
+		BigFloat::mult(1/DEZOOM_FACTOR, *bigScale, temp);
 		bigScale->reset();
 		temp2.copy(*bigScale);
-		BigFloat2::add(temp, temp2, *bigScale);
+		BigFloat::add(temp, temp2, *bigScale);
 
 		//Nouveau calcul de la fractale avec chrono
 		disp->start = chrono::system_clock::now();
@@ -203,6 +203,6 @@ public:
 	}
 };
 
-BigFloat2* Events::bigScale = new BigFloat2();
-BigFloat2* Events::xCenter = new BigFloat2();
-BigFloat2* Events::yCenter = new BigFloat2();
+BigFloat* Events::bigScale = new BigFloat();
+BigFloat* Events::xCenter = new BigFloat();
+BigFloat* Events::yCenter = new BigFloat();
