@@ -73,14 +73,20 @@ public:
 			disp->dessin();
 	}
 
-	static void updateBigCenter(SDL_Event& event) {
+	static void updateBigCenter(SDL_Event& event, bool zoom) {
 		BigFloat2 temp, temp2; 
 		BigFloat2::mult(((float)event.motion.x) / WIDTH - 0.5f, *bigScale, temp2);
 		BigFloat2::add(*xCenter, temp2, temp);
 		temp2.reset();
-		BigFloat2::mult((1.f - ZOOM_FACTOR), temp, temp2);
+		if (zoom)
+			BigFloat2::mult((1.f - ZOOM_FACTOR), temp, temp2);
+		else
+			BigFloat2::mult((1.f - 1 / DEZOOM_FACTOR), temp, temp2);
 		temp.reset();
-		BigFloat2::mult(ZOOM_FACTOR, *xCenter, temp);
+		if (zoom)
+			BigFloat2::mult(ZOOM_FACTOR, *xCenter, temp);
+		else
+			BigFloat2::mult(1 / DEZOOM_FACTOR, *xCenter, temp);
 		BigFloat2::add(temp2, temp, *xCenter);
 
 		temp.reset();
@@ -88,13 +94,19 @@ public:
 		BigFloat2::mult(((float)event.motion.y) / HEIGHT - 0.5f, *bigScale, temp2);
 		BigFloat2::add(*yCenter, temp2, temp);
 		temp2.reset();
-		BigFloat2::mult((1.f - ZOOM_FACTOR), temp, temp2);
+		if (zoom)
+			BigFloat2::mult((1.f - ZOOM_FACTOR), temp, temp2);
+		else
+			BigFloat2::mult((1.f - 1 / DEZOOM_FACTOR), temp, temp2);
 		temp.reset();
-		BigFloat2::mult(ZOOM_FACTOR, *yCenter, temp);
+		if (zoom)
+			BigFloat2::mult(ZOOM_FACTOR, *yCenter, temp);
+		else
+			BigFloat2::mult(1 / DEZOOM_FACTOR, *yCenter, temp);
 		BigFloat2::add(temp2, temp, *yCenter);
 	}
 
-	//static BigFloat2* bigZoomFactor;
+
 	// Zoom vers la cible du clic
 	static void clicGauche(SDL_Event& event, Affichage* disp)
 	{
@@ -107,7 +119,7 @@ public:
 		if (INTERACTIVE) {
 			disp->center.x = x + (disp->center.x - x) * ZOOM_FACTOR;
 			disp->center.y = y + (disp->center.y - y) * ZOOM_FACTOR;
-			updateBigCenter(event);
+			updateBigCenter(event, true);
 		}
 		
 
@@ -146,26 +158,48 @@ public:
 	// Dezoome hors de la cible du clic
 	static void clicDroit(SDL_Event& event, Affichage* disp)
 	{
+		// Calcul de la position du clic dans le plan complexe
+		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5f);
+		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5f);
+
+		// MAJ de la position du nouveau centre dans le plan complexe
+		if (INTERACTIVE) {
+			disp->center.x = x + (disp->center.x - x) / DEZOOM_FACTOR;
+			disp->center.y = y + (disp->center.y - y) / DEZOOM_FACTOR;
+			updateBigCenter(event, false);
+		}
 
 
-		/* Pour les commentaires, voir la methode Event::clicGauche */
-		float x = disp->center.x + disp->scale*(((float)event.motion.x) / WIDTH - 0.5f); 
-		float y = disp->center.y + disp->scale*(((float)event.motion.y) / HEIGHT - 0.5f); 
-		//cout << "Old x = " << x << endl;
-		disp->center.x = x + (disp->center.x - x) / DEZOOM_FACTOR;
-		disp->center.y = y + (disp->center.y - y) / DEZOOM_FACTOR;
-		disp->scale /= DEZOOM_FACTOR;
+		// MAJ de l'echelle
+		disp->scale *= DEZOOM_FACTOR;
+		//BigFloat2 zoomFactor(true, 0, 0x80000000, 0, 0);
+		BigFloat2 temp, temp2;
+		BigFloat2::mult(1/DEZOOM_FACTOR, *bigScale, temp);
+		bigScale->reset();
+		temp2.copy(*bigScale);
+		BigFloat2::add(temp, temp2, *bigScale);
+
+		//Nouveau calcul de la fractale avec chrono
 		disp->start = chrono::system_clock::now();
+
 		if (GPU && BIG_FLOAT_SIZE == 0)
 			affichageGPU(disp);
 		else if (GPU)
 			computeBigMandelGPU(disp, xCenter->pos, xCenter->decimals, yCenter->pos, yCenter->decimals, bigScale->decimals);
 		else
-			computeMandel(disp->pixels, disp->center, disp->scale);
-		disp->end = chrono::system_clock::now();
-		disp->duration = disp->end - disp->start;
-		cout << "Frame computing time : " << disp->duration.count() << endl;
-		disp->dessin();
+			if (BIG_FLOAT_SIZE == 0)
+				computeMandel(disp->pixels, disp->center, disp->scale);
+			else {
+				computeBigMandel(disp->pixels, *xCenter, *yCenter, *bigScale);
+			}
+
+			disp->end = chrono::system_clock::now();
+			disp->duration = disp->end - disp->start;
+			cout << "Frame computing time : " << disp->duration.count() << endl;
+			//cout << "Frame computing scale : " << disp->scale << endl;
+
+			// Affichage de la fractale
+			disp->dessin();
 	}
 };
 

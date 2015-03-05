@@ -120,6 +120,32 @@ __device__ void getStep100(bool* pos, uint32_t* dec)
 	__syncthreads();
 }
 
+
+__device__ void getStep(bool* pos, uint32_t* dec) {
+		*pos = true;
+		dec[0] = 0;
+#if BIG_FLOAT_SIZE > 1
+		dec[1] = 0xffffffff/WIDTH;
+#endif
+#if BIG_FLOAT_SIZE > 2
+		dec[2] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 3
+		dec[3] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 4
+		dec[4] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 5
+		dec[5] = 0;
+#endif
+#if BIG_FLOAT_SIZE > 6
+		dec[6] = 0;
+#endif
+
+	__syncthreads();
+}
+
 // Initialise 1/256 en BigFLoat
 __device__ void getStep256(bool* pos, uint32_t* dec)
 {
@@ -558,12 +584,12 @@ __device__ void computeMandel(uint32_t* res, bool* posXinit, uint32_t* decXinit,
 // TODO : voir si passer k en parametre dans toutes les fonctions optimise.
 __device__ void loadStart(int n, bool posC, uint32_t* decC, uint32_t* scale, bool* posRes, uint32_t* decRes)
 {
-	#if WIDTH == 256
-		getStep256(posRes, decRes);		// Res = 1/256
-	#elif WIDTH == 512
-		getStep512(posRes, decRes);		// Res = 1/512
-	#endif
-	
+//#if WIDTH == 256
+//	getStep256(posRes, decRes);		// res = 1/256
+//#elif WIDTH == 512
+//	getStep512(posRes, decRes);		// res = 1/512
+//#endif
+	getStep(posRes, decRes);
 	multIntIP(posRes, decRes, true, n);	// Res *= i
 	minusHalfIP(posRes, decRes);		// Res -= 0.5
 	multIP(posRes, decRes, true, scale);// Res *= scale
@@ -627,22 +653,14 @@ int computeBigMandelGPU(Affichage* display)
 	bool h_posCy;
 	bool h_posS;
 
-	h_decCx[0] = 0;
-	h_decCx[1] = 0;// 3006477107;
-	h_decCx[2] = 0;
-	h_decCx[3] = 0;
-	h_posCx = true;
-
-	h_decCy[0] = 0;
-	h_decCy[1] = 0;// 2147483648;
-	h_decCy[2] = 0;
-	h_decCy[3] = 0;
-	h_posCy = true;
-
+	for (int i = 0; i < BIG_FLOAT_SIZE; i++) {
+		h_decCx[i] = 0;
+		h_decCy[i] = 0;
+		h_decS[i] = 0;
+	}
 	h_decS[0] = 4;
-	h_decS[1] = 0;
-	h_decS[2] = 0;
-	h_decS[3] = 0;
+	h_posCx = true;
+	h_posCy = true;
 	h_posS = true;
 
 	ASSERT(cudaSuccess == cudaMemcpy(d_decCx, h_decCx, BIG_FLOAT_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice), "Copy of decCx from host to device failed", -1);
