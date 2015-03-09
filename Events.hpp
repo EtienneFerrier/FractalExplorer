@@ -171,7 +171,7 @@ public:
 
 
 		// MAJ de l'echelle
-		disp->scale *= DEZOOM_FACTOR;
+		disp->scale /= DEZOOM_FACTOR;
 		//BigFloat zoomFactor(true, 0, 0x80000000, 0, 0);
 		BigFloat temp, temp2;
 		BigFloat::mult(1/DEZOOM_FACTOR, *bigScale, temp);
